@@ -1,10 +1,15 @@
-package com.yogpc.gi;
+package com.yogpc.gi.asm;
 
+import java.io.InputStream;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraft.launchwrapper.Launch;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -21,54 +26,11 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import cpw.mods.fml.common.DummyModContainer;
-import cpw.mods.fml.common.ModMetadata;
-import cpw.mods.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
-import cpw.mods.fml.relauncher.FMLRelaunchLog;
-import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
+import com.yogpc.gi.Analyzer;
+import com.yogpc.gi.AsmFixer;
+import com.yogpc.gi.Mapping;
 
-public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassTransformer {
-  private static boolean initialized = false;
-  private static final ModMetadata md = new ModMetadata();
-  private static String GTB, GC;
-  static {
-    md.modId = "googleime";
-    md.name = "GoogleIME";
-  }
-
-  public Asm() {
-    super(md);
-  }
-
-  @Override
-  public String[] getASMTransformerClass() {
-    return new String[] {this.getClass().getName()};
-  }
-
-  @Override
-  public String getModContainerClass() {
-    return this.getClass().getName();
-  }
-
-  @Override
-  public String getSetupClass() {
-    return null;
-  }
-
-  @Override
-  public void injectData(final Map<String, Object> data) {}
-
-  @Override
-  public String getAccessTransformerClass() {
-    return null;
-  }
-
-  private static final void init() {
-    GTB = FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/gui/GuiTextField");
-    GC = FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/gui/GuiChat");
-    initialized = true;
-  }
-
+public class Asm implements IClassTransformer {
   private static final void key(final MethodNode mn, final String cn) {
     String f1 = null, f2 = null;
     AbstractInsnNode a;
@@ -83,8 +45,6 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
           f1 = ((FieldInsnNode) a).name;
         else if (f2 == null)
           f2 = ((FieldInsnNode) a).name;
-        else
-          FMLRelaunchLog.warning("Overflow own boolean field %s\n", ((FieldInsnNode) a).name);
       }
     }
     mn.instructions.clear();
@@ -122,7 +82,8 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
     mn.instructions.insert(p, new VarInsnNode(Opcodes.ALOAD, 0));
   }
 
-  private static final void draw(final MethodNode mn, final String cn, final String fn) {
+  private static final void draw(final MethodNode mn, final String cn, final String fn,
+      final String frt, final String frf) {
     AbstractInsnNode p = mn.instructions.getFirst();
     while (p != null) {
       if (p.getOpcode() == Opcodes.RETURN) {
@@ -131,8 +92,10 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
             "Lcom/yogpc/gi/GuiTextFieldManager;"));
         mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, fn, "I"));
+        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, frf, frt));
         mn.instructions.insertBefore(p, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
-            "com/yogpc/gi/GuiTextFieldManager", "hookDraw", "(I)V", false));
+            "com/yogpc/gi/GuiTextFieldManager", "hookDraw", "(ILjava/lang/Object;)V", false));
       }
       p = p.getNext();
     }
@@ -152,16 +115,13 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
     }
   }
 
-  private static final byte[] gtb(final byte[] ba) {
-    final ClassNode cnode = new ClassNode();
-    final ClassReader reader = new ClassReader(ba);
-    reader.accept(cnode, ClassReader.EXPAND_FRAMES);
-    cnode.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
+  private static final byte[] gtb(final ClassNode cn) {
+    cn.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
         "Lcom/yogpc/gi/GuiTextFieldManager;", null, null));
     final Map<String, Integer> map = new HashMap<String, Integer>();
-    for (final MethodNode mnode : cnode.methods)
+    for (final MethodNode mnode : cn.methods)
       if ("(I)V".equals(mnode.desc))
-        count(mnode, cnode.name, map);
+        count(mnode, cn.name, map);
     int maxV = 0;
     String maxK = null;
     for (final Map.Entry<String, Integer> e : map.entrySet())
@@ -169,15 +129,41 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
         maxV = e.getValue().intValue();
         maxK = e.getKey();
       }
-    for (final MethodNode mnode : cnode.methods)
+    String frf = null, frt = null;
+    for (final MethodNode mn : cn.methods)
+      if (mn.name.equals("<init>")) {
+        final int shift = mn.desc.charAt(1) == 'L' ? 0 : 1;
+        int phase = -1;
+        AbstractInsnNode ain = mn.instructions.getFirst();
+        while (ain != null) {
+          if (phase < 0 && ain.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) ain).var == 0)
+            phase = 0;
+          else if (phase == 0 && ain.getOpcode() == Opcodes.ALOAD
+              && ((VarInsnNode) ain).var == 1 + shift)
+            phase = 9999;
+          else if (phase > 0 && ain.getOpcode() == Opcodes.PUTFIELD) {
+            frf = ((FieldInsnNode) ain).name;
+            frt = ((FieldInsnNode) ain).desc;
+            phase = -1;
+          } else
+            phase = -1;
+          ain = ain.getNext();
+        }
+      }
+    for (final MethodNode mnode : cn.methods)
       if ("(CI)Z".equals(mnode.desc))
-        key(mnode, cnode.name);
+        key(mnode, cn.name);
       else if ("<init>".equals(mnode.name))
-        init(mnode, cnode.name);
+        init(mnode, cn.name);
       else if ("()V".equals(mnode.desc) && mnode.instructions.size() > 150)
-        draw(mnode, cnode.name, maxK);
+        draw(mnode, cn.name, maxK, frt, frf);
+    for (final FieldNode fnode : cn.fields) {
+      // FIXME all public
+      fnode.access |= Opcodes.ACC_PUBLIC;
+      fnode.access &= ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED);
+    }
     final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-    cnode.accept(cw);
+    cn.accept(cw);
     return cw.toByteArray();
   }
 
@@ -207,32 +193,68 @@ public class Asm extends DummyModContainer implements IFMLLoadingPlugin, IClassT
     mn.instructions.insertBefore(a, l);
   }
 
-  private static final byte[] gc(final byte[] ba) {
-    final ClassNode cnode = new ClassNode();
-    final ClassReader reader = new ClassReader(ba);
-    reader.accept(cnode, ClassReader.EXPAND_FRAMES);
-    final String cd = "L" + GTB + ";";
-    String fn = null;
-    for (final FieldNode fnode : cnode.fields)
-      if (cd.equals(fnode.desc))
+  private static boolean done = false;
+
+  private static final byte[] gtfm(final ClassNode cn) {
+    try {
+      if (!done) {
+        final URL[] urls = Launch.classLoader.getURLs();
+        for (final URL url : urls) {
+          boolean isTarget = false;
+          ZipEntry ze;
+          final InputStream is = url.openStream();
+          final ZipInputStream in = new ZipInputStream(is);
+          while ((ze = in.getNextEntry()) != null) {
+            if (ze.getName().startsWith("META-INF/MOJANG")) {
+              isTarget = true;
+              break;
+            }
+            in.closeEntry();
+          }
+          in.close();
+          is.close();
+          if (isTarget)
+            Analyzer.anis(url);
+        }
+        done = true;
+      }
+      final ClassNode out = new ClassNode();
+      cn.accept(AsmFixer.InitAdapter(out, Mapping.I));
+      final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+      out.accept(cw);
+      return cw.toByteArray();
+    } catch (final Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static final byte[] gc(final ClassNode cn) {
+    String fn = null, fd = null;
+    for (final FieldNode fnode : cn.fields)
+      if (fnode.desc.startsWith("L") && fnode.desc.length() < 8) {
         fn = fnode.name;
-    for (final MethodNode mnode : cnode.methods)
+        fd = fnode.desc;
+      }
+    for (final MethodNode mnode : cn.methods)
       if ("(CI)V".equals(mnode.desc))
-        chat(mnode, cnode.name, fn, cd);
-    final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-    cnode.accept(cw);
+        chat(mnode, cn.name, fn, fd);
+    final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+    cn.accept(cw);
     return cw.toByteArray();
   }
 
   @Override
   public byte[] transform(final String name, final String transformedName, final byte[] ba) {
-    if (!initialized)
-      init();
-    final String un = name.replace('.', '/');
-    if (GTB.equals(un))
-      return gtb(ba);
-    if (GC.equals(un))
-      return gc(ba);
+    final ClassNode cn = new ClassNode();
+    final ClassReader cr = new ClassReader(ba);
+    cr.accept(cn, ClassReader.EXPAND_FRAMES);
+    if (name.equals("com.yogpc.gi.GuiTextFieldManager"))
+      return gtfm(cn);
+    for (final MethodNode mn : cn.methods)
+      if ("(IIZ)I".equals(mn.desc))
+        return gtb(cn);
+      else if ("([Ljava/lang/String;)V".equals(mn.desc))
+        return gc(cn);
     return ba;
   }
 }

@@ -19,7 +19,7 @@ public class HttpRequest {
       sb.append(URLEncoder.encode(s, "UTF-8"));
       final URLConnection huc = new URL(sb.toString()).openConnection();
       final InputStream is = huc.getInputStream();
-      final Reader r = new InputStreamReader(is);
+      final Reader r = new InputStreamReader(is, "UTF-8");
       final TranslateEntry[] te = gson.fromJson(r, TranslateEntry[].class);
       r.close();
       is.close();

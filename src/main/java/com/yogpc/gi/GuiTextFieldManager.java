@@ -1,13 +1,19 @@
 package com.yogpc.gi;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.util.ChatAllowedCharacters;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 
+import org.apache.commons.lang3.StringUtils;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
+
+import com.yogpc.gi.dummy.ChatAllowedCharacters;
+import com.yogpc.gi.dummy.FontRenderer;
+import com.yogpc.gi.dummy.GuiTextField;
+import com.yogpc.gi.dummy.Tessellator;
+import com.yogpc.gi.dummy.WorldRenderer;
 
 public class GuiTextFieldManager {
   private final GuiTextField gtf;
@@ -52,11 +58,38 @@ public class GuiTextFieldManager {
     this.raw = null;
   }
 
+  private static String getClipboardString() {
+    try {
+      final Transferable t = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+      if (t != null && t.isDataFlavorSupported(DataFlavor.stringFlavor))
+        return (String) t.getTransferData(DataFlavor.stringFlavor);
+    } catch (final Exception e) {
+    }
+    return "";
+  }
+
+  private static void setClipboardString(final String s) {
+    if (!StringUtils.isEmpty(s))
+      try {
+        final StringSelection l = new StringSelection(s);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(l, null);
+      } catch (final Exception e) {
+      }
+  }
+
+  private static boolean isCtrlKeyDown() {
+    return Keyboard.isKeyDown(29) || Keyboard.isKeyDown(157);
+  }
+
+  private static boolean isShiftKeyDown() {
+    return Keyboard.isKeyDown(42) || Keyboard.isKeyDown(54);
+  }
+
   public boolean hookTyped(final boolean isEnabled, final char c, final int i) {
     switch (c) {
       case 1:// ctrl+a
         this.gtf.setSelectionPos(0);
-        this.gtf.setCursorPositionEnd();
+        this.gtf.setCursorPosition(this.gtf.getText().length());
         return true;
       case 10:// ctrl+j
         jap = !jap;
@@ -65,13 +98,13 @@ public class GuiTextFieldManager {
         return true;
       case 3:// ctrl+c
       case 24:// ctrl+x
-        GuiScreen.setClipboardString(this.gtf.getSelectedText());
+        setClipboardString(this.gtf.getSelectedText());
         if (isEnabled && c == 24)
           this.gtf.writeText("");
         return true;
       case 22:// ctrl+v
         if (isEnabled)
-          this.gtf.writeText(GuiScreen.getClipboardString());
+          this.gtf.writeText(getClipboardString());
         return true;
       default:
         switch (i) {
@@ -86,7 +119,7 @@ public class GuiTextFieldManager {
             }
             final int am = i == 14 ? -1 : 1;
             if (isEnabled) {
-              if (GuiScreen.isCtrlKeyDown())
+              if (isCtrlKeyDown())
                 this.gtf.deleteWords(am);
               else
                 this.gtf.deleteFromCursor(am);
@@ -99,11 +132,11 @@ public class GuiTextFieldManager {
           case 203:// left arrow
           case 205:// right arrow
             final int dir = i == 199 || i == 203 ? -1 : 1;
-            final boolean sel = GuiScreen.isShiftKeyDown();
+            final boolean sel = isShiftKeyDown();
             final int base = sel ? this.gtf.getSelectionEnd() : this.gtf.getCursorPosition();
             final int pos =
-                i == 199 || i == 207 ? dir < 0 ? 0 : this.gtf.getText().length() : GuiScreen
-                    .isCtrlKeyDown() ? this.gtf.func_146197_a(dir, base, true) : base + dir;
+                i == 199 || i == 207 ? dir < 0 ? 0 : this.gtf.getText().length()
+                    : isCtrlKeyDown() ? this.gtf.func_146197_a(dir, base, true) : base + dir;
             if (sel)
               this.gtf.setSelectionPos(pos);
             else
@@ -150,7 +183,7 @@ public class GuiTextFieldManager {
       if (isEnabled) {
         if (this.japend > -1)
           reset(true);
-        if (this.japbgn < 0 && c != ' ')
+        if (jap && this.japbgn < 0 && c != ' ')
           this.japbgn = this.gtf.getCursorPosition();
         this.gtf.writeText(Character.toString(c));
       }
@@ -159,10 +192,10 @@ public class GuiTextFieldManager {
     return false;
   }
 
-  public void hookDraw(final int coff) {
+  public void hookDraw(final int coff, final Object o) {
     if (!this.gtf.getVisible() || this.japbgn < 0)
       return;
-    final FontRenderer fr = Minecraft.getMinecraft().fontRenderer;
+    final FontRenderer fr = (FontRenderer) o;
     final String str = this.gtf.getText();
     final int csr = this.gtf.getCursorPosition();
     final int _____japend = this.japend > -1 ? this.japend : csr;
@@ -183,10 +216,11 @@ public class GuiTextFieldManager {
         }
       }
     }
-    final Tessellator tessellator = Tessellator.instance;
+    final Tessellator tessellator = Tessellator.getInstance();
+    final WorldRenderer wr = tessellator.getWorldRenderer();
     final int bx1 = this.gtf.xPosition;
     final int by1 = this.gtf.yPosition;
-    final int by2 = by1 + fr.FONT_HEIGHT;
+    final int by2 = by1 + 9;// FontRenderer.FONT_HEIGHT
     final int by3 = by2 + 1;
     GL11.glPushMatrix();
     GL11.glDisable(GL11.GL_TEXTURE_2D);
@@ -196,22 +230,22 @@ public class GuiTextFieldManager {
     final int rx2 = bx1 + Math.min(this.gtf.width, rawend);
     if (rx1 < rx2) {
       GL11.glColor4f(255.0F, 0, 0, 255.0F);
-      tessellator.startDrawingQuads();
-      tessellator.addVertex(rx1, by3, 0.0D);
-      tessellator.addVertex(rx2, by3, 0.0D);
-      tessellator.addVertex(rx2, by2, 0.0D);
-      tessellator.addVertex(rx1, by2, 0.0D);
+      wr.startDrawingQuads();
+      wr.addVertex(rx1, by3, 0.0D);
+      wr.addVertex(rx2, by3, 0.0D);
+      wr.addVertex(rx2, by2, 0.0D);
+      wr.addVertex(rx1, by2, 0.0D);
       tessellator.draw();
     }
     final int sx1 = bx1 + Math.min(this.gtf.width, selbgn);
     final int sx2 = bx1 + Math.min(this.gtf.width, selend);
     if (sx1 < sx2) {
       GL11.glColor4f(255.0F, 255.0F, 255.0F, 255.0F);
-      tessellator.startDrawingQuads();
-      tessellator.addVertex(sx1, by2, 0.0D);
-      tessellator.addVertex(sx2, by2, 0.0D);
-      tessellator.addVertex(sx2, by1, 0.0D);
-      tessellator.addVertex(sx1, by1, 0.0D);
+      wr.startDrawingQuads();
+      wr.addVertex(sx1, by2, 0.0D);
+      wr.addVertex(sx2, by2, 0.0D);
+      wr.addVertex(sx2, by1, 0.0D);
+      wr.addVertex(sx1, by1, 0.0D);
       tessellator.draw();
     }
     GL11.glDisable(GL11.GL_COLOR_LOGIC_OP);
