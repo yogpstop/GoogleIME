@@ -1,0 +1,10 @@
+GuiScreenBook
+GuiEditSign
+
+RenderingHook
+
+disable(check)IME on every display init
+
+hook displayGuiScreen
+	enable/disableIME
+textboxList add/delete initGui(?)

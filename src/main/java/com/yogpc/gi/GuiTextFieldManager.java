@@ -5,7 +5,6 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 
-import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
@@ -69,7 +68,7 @@ public class GuiTextFieldManager {
   }
 
   private static void setClipboardString(final String s) {
-    if (!StringUtils.isEmpty(s))
+    if (s != null && s.length() != 0)
       try {
         final StringSelection l = new StringSelection(s);
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(l, null);

@@ -2,8 +2,10 @@ package com.yogpc.gi.asm;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -115,7 +117,7 @@ public class Asm implements IClassTransformer {
     }
   }
 
-  private static final byte[] gtb(final ClassNode cn) {
+  private static final void gtb(final ClassNode cn) {
     cn.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
         "Lcom/yogpc/gi/GuiTextFieldManager;", null, null));
     final Map<String, Integer> map = new HashMap<String, Integer>();
@@ -162,9 +164,6 @@ public class Asm implements IClassTransformer {
       fnode.access |= Opcodes.ACC_PUBLIC;
       fnode.access &= ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED);
     }
-    final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-    cn.accept(cw);
-    return cw.toByteArray();
   }
 
   private static final void chat(final MethodNode mn, final String cn, final String fn,
@@ -195,7 +194,7 @@ public class Asm implements IClassTransformer {
 
   private static boolean done = false;
 
-  private static final byte[] gtfm(final ClassNode cn) {
+  private static final void gtfm(final ClassNode cn) {
     try {
       if (!done) {
         final URL[] urls = Launch.classLoader.getURLs();
@@ -220,15 +219,12 @@ public class Asm implements IClassTransformer {
       }
       final ClassNode out = new ClassNode();
       cn.accept(AsmFixer.InitAdapter(out, Mapping.I));
-      final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-      out.accept(cw);
-      return cw.toByteArray();
     } catch (final Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private static final byte[] gc(final ClassNode cn) {
+  private static final void gc(final ClassNode cn) {
     String fn = null, fd = null;
     for (final FieldNode fnode : cn.fields)
       if (fnode.desc.startsWith("L") && fnode.desc.length() < 8) {
@@ -238,23 +234,55 @@ public class Asm implements IClassTransformer {
     for (final MethodNode mnode : cn.methods)
       if ("(CI)V".equals(mnode.desc))
         chat(mnode, cn.name, fn, fd);
-    final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-    cn.accept(cw);
-    return cw.toByteArray();
+  }
+
+  private static final List<String> hwndmethods = new ArrayList<String>();
+  static {
+    hwndmethods.add("create(Lorg/lwjgl/opengl/PixelFormat;)V");
+    hwndmethods.add("create()V");
+    hwndmethods.add("setDisplayMode(Lorg/lwjgl/opengl/DisplayMode;)V");
+    hwndmethods.add("setFullscreen(Z)V");
   }
 
   @Override
   public byte[] transform(final String name, final String transformedName, final byte[] ba) {
     final ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
+    boolean modified = false;
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
-    if (name.equals("com.yogpc.gi.GuiTextFieldManager"))
-      return gtfm(cn);
-    for (final MethodNode mn : cn.methods)
-      if ("(IIZ)I".equals(mn.desc))
-        return gtb(cn);
-      else if ("([Ljava/lang/String;)V".equals(mn.desc))
-        return gc(cn);
-    return ba;
+    for (final MethodNode mn : cn.methods) {
+      AbstractInsnNode ain = mn.instructions.getFirst();
+      while (ain != null) {
+        fs: if (ain instanceof MethodInsnNode) {
+          MethodInsnNode min = (MethodInsnNode) ain;
+          if (!"org/lwjgl/opengl/Display".equals(min.owner))
+            break fs;
+          if (!hwndmethods.contains(min.name + min.desc))
+            break fs;
+          mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
+              "com/yogpc/gi/w32/FullscreenDetector", "update", "()V", false));
+          modified = true;
+        }
+        ain = ain.getNext();
+      }
+    }
+    if (name.equals("com.yogpc.gi.GuiTextFieldManager")) {
+      gtfm(cn);
+      modified = true;
+    }
+    if (name.length() < 4)// TODO Obfuscated detection
+      for (final MethodNode mn : cn.methods)
+        if ("(IIZ)I".equals(mn.desc)) {
+          gtb(cn);
+          modified = true;
+        } else if ("([Ljava/lang/String;)V".equals(mn.desc)) {
+          gc(cn);
+          modified = true;
+        }
+    if (!modified)
+      return ba;
+    final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+    cn.accept(cw);
+    return cw.toByteArray();
   }
 }
