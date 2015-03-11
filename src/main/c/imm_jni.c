@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "com_yogpc_gi_w32_JNIHandler.h"
 static HWND hWnd;
 static WNDPROC pWndProc;
 static void sendNullKeydown() {
@@ -41,34 +42,18 @@ static void pushCandidate() {
 	// TODO push to java
 	ImmReleaseContext(hWnd, hIMC);
 }
-void killIME() {
+static void killIME() {
 	// TODO check java status
 	HIMC hIMC = ImmGetContext(hWnd);
 	ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
 	ImmReleaseContext(hWnd, hIMC);
 }
-//TODO called by java
-BOOL isOpenIME() {
+JNIEXPORT jboolean JNICALL Java_com_yogpc_gi_w32_JNIHandler_isOpenIME
+		(JNIEnv *je, jclass jc) {
 	HIMC hIMC = ImmGetContext(hWnd);
 	BOOL b = ImmGetOpenStatus(hIMC);
 	ImmReleaseContext(hWnd, hIMC);
 	return b;
-}
-static HIMC lastHIMC = NULL;
-//TODO called by java
-void linkIME() {
-	if (!lastHIMC) return;
-	HIMC hIMC = ImmGetContext(hWnd);
-	ImmAssociateContext(hWnd, lastHIMC);
-	lastHIMC = NULL;
-	ImmReleaseContext(hWnd, hIMC);
-}
-//TODO called by java
-void unlinkIME() {
-	if (lastHIMC) return;
-	HIMC hIMC = ImmGetContext(hWnd);
-	lastHIMC = ImmAssociateContext(hWnd, 0);
-	ImmReleaseContext(hWnd, hIMC);
 }
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	switch (msg) {
@@ -104,11 +89,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	}
 	return CallWindowProc(pWndProc, hWnd, msg, wp, lp);
 }
-//TODO called by java
-void setHWnd(long ptr) {
+JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_setHWnd
+		(JNIEnv * je, jclass jc, jlong ptr) {
 	hWnd = (HWND)(LONG_PTR) ptr;
 	pWndProc = (WNDPROC) GetWindowLongPtr(hWnd, GWLP_WNDPROC);
 	SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR) WndProc);
 	SetActiveWindow(hWnd);
 	sendNullKeydown();//TODO
+}
+static HIMC lastHIMC = NULL;
+JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_linkIME
+		(JNIEnv *je, jclass jc) {
+	if (!lastHIMC) return;
+	HIMC hIMC = ImmGetContext(hWnd);
+	ImmAssociateContext(hWnd, lastHIMC);
+	lastHIMC = NULL;
+	ImmReleaseContext(hWnd, hIMC);
+}
+JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_unlinkIME
+		(JNIEnv *je, jclass jc) {
+	if (lastHIMC) return;
+	HIMC hIMC = ImmGetContext(hWnd);
+	lastHIMC = ImmAssociateContext(hWnd, 0);
+	ImmReleaseContext(hWnd, hIMC);
 }

@@ -254,13 +254,13 @@ public class Asm implements IClassTransformer {
       AbstractInsnNode ain = mn.instructions.getFirst();
       while (ain != null) {
         fs: if (ain instanceof MethodInsnNode) {
-          MethodInsnNode min = (MethodInsnNode) ain;
+          final MethodInsnNode min = (MethodInsnNode) ain;
           if (!"org/lwjgl/opengl/Display".equals(min.owner))
             break fs;
           if (!hwndmethods.contains(min.name + min.desc))
             break fs;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/gi/w32/FullscreenDetector", "update", "()V", false));
+              "com/yogpc/gi/w32/JNIHandler", "updateHWnd", "()V", false));
           modified = true;
         }
         ain = ain.getNext();

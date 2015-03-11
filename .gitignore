@@ -4,3 +4,5 @@
 /.classpath
 /.project
 /.settings
+*.dll
+/src/main/c/com_yogpc_gi_w32_JNIHandler.h
