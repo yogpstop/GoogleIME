@@ -23,6 +23,7 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
@@ -103,6 +104,21 @@ public class Asm implements IClassTransformer {
     }
   }
 
+  private static final void focused(final MethodNode mn) {
+    AbstractInsnNode ain = mn.instructions.getFirst();
+    while (ain != null) {
+      if (ain.getOpcode() == Opcodes.ICONST_0) {
+        ain = mn.instructions.getFirst();
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ILOAD, 1));
+        mn.instructions.insertBefore(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
+            "com/yogpc/gi/TFManager", "hookFocuse", "(Ljava/lang/Object;Z)V", false));
+        return;
+      }
+      ain = ain.getNext();
+    }
+  }
+
   private static final void count(final MethodNode mn, final String cn,
       final Map<String, Integer> map) {
     AbstractInsnNode p = mn.instructions.getFirst();
@@ -117,7 +133,7 @@ public class Asm implements IClassTransformer {
     }
   }
 
-  private static final void gtb(final ClassNode cn) {
+  private static final void gtf(final ClassNode cn) {
     cn.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
         "Lcom/yogpc/gi/GuiTextFieldManager;", null, null));
     final Map<String, Integer> map = new HashMap<String, Integer>();
@@ -159,6 +175,8 @@ public class Asm implements IClassTransformer {
         init(mnode, cn.name);
       else if ("()V".equals(mnode.desc) && mnode.instructions.size() > 150)
         draw(mnode, cn.name, maxK, frt, frf);
+      else if ("(Z)V".equals(mnode.desc))
+        focused(mnode);
     for (final FieldNode fnode : cn.fields) {
       // FIXME all public
       fnode.access |= Opcodes.ACC_PUBLIC;
@@ -194,7 +212,7 @@ public class Asm implements IClassTransformer {
 
   private static boolean done = false;
 
-  private static final void gtfm(final ClassNode cn) {
+  private static final ClassNode gtfm(final ClassNode cn) {
     try {
       if (!done) {
         final URL[] urls = Launch.classLoader.getURLs();
@@ -219,9 +237,42 @@ public class Asm implements IClassTransformer {
       }
       final ClassNode out = new ClassNode();
       cn.accept(AsmFixer.InitAdapter(out, Mapping.I));
+      return out;
     } catch (final Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static void mc(final ClassNode cn) {
+    final List<String> map = new ArrayList<String>();
+    for (final MethodNode mn : cn.methods)
+      if ("(II)V".equals(mn.desc)) {
+        AbstractInsnNode ain = mn.instructions.getFirst();
+        while (ain != null) {
+          if (ain instanceof FieldInsnNode && ((FieldInsnNode) ain).owner.equals(cn.name)
+              && ((FieldInsnNode) ain).desc.startsWith("L"))
+            map.add("(" + ((FieldInsnNode) ain).desc + ")V");
+          ain = ain.getNext();
+        }
+      }
+    for (final MethodNode mn : cn.methods)
+      if (map.contains(mn.desc)) {
+        final AbstractInsnNode a = mn.instructions.getFirst();
+        mn.instructions.insertBefore(a, new VarInsnNode(Opcodes.ALOAD, 1));
+        mn.instructions.insertBefore(a, new MethodInsnNode(Opcodes.INVOKESTATIC,
+            "com/yogpc/gi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V", false));
+      }
+  }
+
+  private static boolean isMinecraft(final MethodNode mn) {
+    AbstractInsnNode ain = mn.instructions.getFirst();
+    while (ain != null) {
+      if (ain instanceof LdcInsnNode
+          && "########## GL ERROR ##########".equals(((LdcInsnNode) ain).cst))
+        return true;
+      ain = ain.getNext();
+    }
+    return false;
   }
 
   private static final void gc(final ClassNode cn) {
@@ -246,7 +297,7 @@ public class Asm implements IClassTransformer {
 
   @Override
   public byte[] transform(final String name, final String transformedName, final byte[] ba) {
-    final ClassNode cn = new ClassNode();
+    ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
     boolean modified = false;
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
@@ -260,23 +311,26 @@ public class Asm implements IClassTransformer {
           if (!hwndmethods.contains(min.name + min.desc))
             break fs;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/gi/w32/JNIHandler", "updateHWnd", "()V", false));
+              "com/yogpc/gi/TFManager", "updateWnd", "()V", false));
           modified = true;
         }
         ain = ain.getNext();
       }
     }
-    if (name.equals("com.yogpc.gi.GuiTextFieldManager")) {
-      gtfm(cn);
+    if ("com.yogpc.gi.GuiTextFieldManager".equals(name) || "com.yogpc.gi.TFManager".equals(name)) {
+      cn = gtfm(cn);
       modified = true;
     }
     if (name.length() < 4)// TODO Obfuscated detection
       for (final MethodNode mn : cn.methods)
         if ("(IIZ)I".equals(mn.desc)) {
-          gtb(cn);
+          gtf(cn);
           modified = true;
         } else if ("([Ljava/lang/String;)V".equals(mn.desc)) {
           gc(cn);
+          modified = true;
+        } else if (isMinecraft(mn)) {
+          mc(cn);
           modified = true;
         }
     if (!modified)

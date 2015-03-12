@@ -5,6 +5,9 @@ import java.lang.reflect.Field;
 import org.lwjgl.opengl.Display;
 
 public class JNIHandler {
+  static {
+    System.loadLibrary("MC-IME");
+  }
   private static final Field cwd;
   private static final Field gwd;
   static {
@@ -32,11 +35,31 @@ public class JNIHandler {
     }
   }
 
-  native static boolean isOpenIME();
+  public native static boolean isOpenIME();
 
-  native static void linkIME();
+  public native static void linkIME();
 
-  native static void unlinkIME();
+  public native static void unlinkIME();
 
-  native static void setHWnd(long ptr);
+  private native static void setHWnd(long ptr);
+
+  public static final void cbResult(final String s) {
+    System.out.println("cbResult");
+    System.out.println(s);
+  }
+
+  public static final void cbComposition(final char[] c, final byte[] b) {
+    System.out.println("cbComposition");
+    System.out.println(c);
+    System.out.println(b);
+  }
+
+  public static final void cbCandidate(final String[] s, final int curCand, final int showFrom,
+      final int showSize) {
+    System.out.println("cbCandidate");
+    System.out.println(s);
+    System.out.println(curCand);
+    System.out.println(showFrom);
+    System.out.println(showSize);
+  }
 }

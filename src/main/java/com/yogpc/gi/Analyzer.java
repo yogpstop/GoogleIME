@@ -230,7 +230,7 @@ public class Analyzer {
       }
   }
 
-  static void analyze(final byte[] ba) {
+  private static void analyze(final byte[] ba) {
     final ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
