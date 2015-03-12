@@ -4,6 +4,8 @@ import java.lang.reflect.Field;
 
 import org.lwjgl.opengl.Display;
 
+import com.yogpc.gi.TFManager;
+
 public class JNIHandler {
   static {
     System.loadLibrary("MC-IME");
@@ -50,8 +52,14 @@ public class JNIHandler {
 
   public static final void cbComposition(final char[] c, final byte[] b) {
     System.out.println("cbComposition");
-    System.out.println(c);
-    System.out.println(b);
+    if (c != null) {
+      System.out.println(c.length);
+      System.out.println(c);
+    }
+    if (b != null) {
+      System.out.println(b.length);
+      System.out.println(b);
+    }
   }
 
   public static final void cbCandidate(final String[] s, final int curCand, final int showFrom,
@@ -61,5 +69,9 @@ public class JNIHandler {
     System.out.println(curCand);
     System.out.println(showFrom);
     System.out.println(showSize);
+  }
+
+  public static final boolean shouldKill() {
+    return TFManager.shouldKill();
   }
 }

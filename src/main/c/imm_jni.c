@@ -2,6 +2,7 @@
 #include "com_yogpc_gi_w32_JNIHandler.h"
 static HWND hWnd = NULL;
 static WNDPROC pWndProc = NULL;
+static jobject gCLS = NULL;
 static void sendNullKeydown() {
 	if (pWndProc == NULL || hWnd != GetForegroundWindow())
 		return;
@@ -32,10 +33,9 @@ static void pushResult() {
 	      ssiz = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR , str, ssiz);
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jstring js = (*je)->NewString(je, str, ssiz / sizeof(jchar));
-	jclass jc = (*je)->FindClass(je, "com/yogpc/gi/w32/JNIHandler");
-	jmethodID jm = (*je)->GetStaticMethodID(je, jc,
+	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
 			"cbResult", "(Ljava/lang/String;)V");
-	(*je)->CallStaticVoidMethod(je, jc, jm, js);
+	(*je)->CallStaticVoidMethod(je, gCLS, jm, js);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(str);//FIXME
 	ImmReleaseContext(hWnd, hIMC);
@@ -53,11 +53,10 @@ static void pushComposition() {
 	jbyteArray jba = (*je)->NewByteArray(je, size / sizeof(jbyte));
 	(*je)->SetByteArrayRegion(je, jba, 0, size / sizeof(jbyte), ret);
 	jcharArray jca = (*je)->NewCharArray(je, ssiz / sizeof(jchar));
-	(*je)->SetCharArrayRegion(je, jca, 0, size / sizeof(jchar), str);
-	jclass jc = (*je)->FindClass(je, "com/yogpc/gi/w32/JNIHandler");
-	jmethodID jm = (*je)->GetStaticMethodID(je, jc,
+	(*je)->SetCharArrayRegion(je, jca, 0, ssiz / sizeof(jchar), str);
+	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
 			"cbComposition", "([C[B)V");
-	(*je)->CallStaticVoidMethod(je, jc, jm, jca, jba);
+	(*je)->CallStaticVoidMethod(je, gCLS, jm, jca, jba);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(str);//FIXME
 	free(ret);//FIXME
@@ -77,10 +76,9 @@ static void pushCandidate() {
 		(*je)->SetObjectArrayElement(je, jsa, i,
 				(*je)->NewString(je, (void*)cndl + cndl->dwOffset[i],
 				wcslen((void*)cndl + cndl->dwOffset[i])));
-	jclass jc = (*je)->FindClass(je, "com/yogpc/gi/w32/JNIHandler");
-	jmethodID jm = (*je)->GetStaticMethodID(je, jc,
+	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
 			"cbCandidate", "([Ljava/lang/String;III)V");
-	(*je)->CallStaticVoidMethod(je, jc, jm, jsa,
+	(*je)->CallStaticVoidMethod(je, gCLS, jm, jsa,
 			cndl->dwSelection, cndl->dwPageStart, cndl->dwPageSize);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(cndl); //FIXME
@@ -88,20 +86,18 @@ static void pushCandidate() {
 }
 static void pushClear(char *n, char *d, int c) {
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jclass jc = (*je)->FindClass(je, "com/yogpc/gi/w32/JNIHandler");
-	jmethodID jm = (*je)->GetStaticMethodID(je, jc, n, d);
+	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS, n, d);
 	jvalue *joa = malloc(c * sizeof(jvalue));
 	memset(joa, 0, c * sizeof(jvalue));
-	(*je)->CallStaticVoidMethodA(je, jc, jm, joa);
+	(*je)->CallStaticVoidMethodA(je, gCLS, jm, joa);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(joa);
 }
 static void killIME() {
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jclass jc = (*je)->FindClass(je, "com/yogpc/gi/TFManager");
-	jmethodID jm = (*je)->GetStaticMethodID(je, jc,
+	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
 			"shouldKill", "()Z");
-	jboolean jb = (*je)->CallStaticBooleanMethod(je, jc, jm);
+	jboolean jb = (*je)->CallStaticBooleanMethod(je, gCLS, jm);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	if (!jb) return;
 	HIMC hIMC = ImmGetContext(hWnd);
@@ -137,21 +133,21 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 				case IMN_OPENCANDIDATE:
 				case IMN_CHANGECANDIDATE:
 					pushCandidate();
-					break;
+					return S_OK;
 				case IMN_CLOSECANDIDATE:
 					pushClear("cbCandidate", "([Ljava/lang/String;III)V", 4);
-					break;
+					return S_OK;
 			}
-			break; // FIXME return S_OK on WM_IME_NOTIFY?
+			break;
 		case WM_IME_SETCONTEXT:
-			// FIXME review ui mask
-			return DefWindowProc(phWnd, msg, wp, lp & ~ISC_SHOWUIALL);
+			return DefWindowProc(phWnd, msg, wp, 0);
 	}
-	if (pWndProc) return CallWindowProc(pWndProc, phWnd, msg, wp, lp);
-	else          return DefWindowProc(phWnd, msg, wp, lp);
+	return CallWindowProc(pWndProc, phWnd, msg, wp, lp);
 }
 JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_setHWnd
 		(JNIEnv * je, jclass jc, jlong ptr) {
+	if (gCLS) (*je)->DeleteGlobalRef(je, gCLS);
+	gCLS = (*je)->NewGlobalRef(je, jc);
 	if (!ptr) return;
 	hWnd = (HWND)(LONG_PTR) ptr;
 	WNDPROC tWndProc = (WNDPROC) GetWindowLongPtr(hWnd, GWLP_WNDPROC);
