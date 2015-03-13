@@ -3,6 +3,12 @@
 static HWND hWnd = NULL;
 static WNDPROC pWndProc = NULL;
 static jobject gCLS = NULL;
+#define JMID_RES 0
+#define JMID_CAND 1
+#define JMID_COMP 2
+#define JMID_KILL 3
+#define JMID_STAT 4
+static jmethodID jms[5];
 static void sendNullKeydown() {
 	if (pWndProc == NULL || hWnd != GetForegroundWindow())
 		return;
@@ -12,7 +18,7 @@ static void sendNullKeydown() {
 	in.ki.wScan = MapVirtualKey(VK_BROWSER_REFRESH, 0);
 	in.ki.dwFlags = KEYEVENTF_EXTENDEDKEY;
 	in.ki.time = 0;
-	in.ki.dwExtraInfo = 0;//GetMessageExtraInfo()
+	in.ki.dwExtraInfo = 0;// FIXME GetMessageExtraInfo()
 	SendInput(1, &in, sizeof(INPUT));
 }
 static JNIEnv *getJE(JavaVM **sr) {
@@ -33,13 +39,11 @@ static void pushResult() {
 	      ssiz = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR , str, ssiz);
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jstring js = (*je)->NewString(je, str, ssiz / sizeof(jchar));
-	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
-			"cbResult", "(Ljava/lang/String;)V");
-	(*je)->CallStaticVoidMethod(je, gCLS, jm, js);
+	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_RES], js);
 	if (sr) (*sr)->DetachCurrentThread(sr);
-	free(str);//FIXME
+	free(str);
 	ImmReleaseContext(hWnd, hIMC);
-	sendNullKeydown();//FIXME
+	sendNullKeydown();// FIXME
 }
 static void pushComposition() {
 	HIMC  hIMC = ImmGetContext(hWnd);
@@ -49,17 +53,16 @@ static void pushComposition() {
 	LONG  ssiz = ImmGetCompositionStringW(hIMC, GCS_COMPSTR , NULL, 0);
 	jchar *str = malloc(ssiz);
 	      ssiz = ImmGetCompositionStringW(hIMC, GCS_COMPSTR , str, ssiz);
+	LONG   csr = ImmGetCompositionStringW(hIMC, GCS_CURSORPOS, NULL, 0);
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jbyteArray jba = (*je)->NewByteArray(je, size / sizeof(jbyte));
 	(*je)->SetByteArrayRegion(je, jba, 0, size / sizeof(jbyte), ret);
 	jcharArray jca = (*je)->NewCharArray(je, ssiz / sizeof(jchar));
 	(*je)->SetCharArrayRegion(je, jca, 0, ssiz / sizeof(jchar), str);
-	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
-			"cbComposition", "([C[B)V");
-	(*je)->CallStaticVoidMethod(je, gCLS, jm, jca, jba);
+	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_COMP], jca, jba, csr);
 	if (sr) (*sr)->DetachCurrentThread(sr);
-	free(str);//FIXME
-	free(ret);//FIXME
+	free(str);
+	free(ret);
 	ImmReleaseContext(hWnd, hIMC);
 }
 static void pushCandidate() {
@@ -76,40 +79,36 @@ static void pushCandidate() {
 		(*je)->SetObjectArrayElement(je, jsa, i,
 				(*je)->NewString(je, (void*)cndl + cndl->dwOffset[i],
 				wcslen((void*)cndl + cndl->dwOffset[i])));
-	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
-			"cbCandidate", "([Ljava/lang/String;III)V");
-	(*je)->CallStaticVoidMethod(je, gCLS, jm, jsa,
+	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_CAND], jsa,
 			cndl->dwSelection, cndl->dwPageStart, cndl->dwPageSize);
 	if (sr) (*sr)->DetachCurrentThread(sr);
-	free(cndl); //FIXME
+	free(cndl);
 	ImmReleaseContext(hWnd, hIMC);
 }
-static void pushClear(char *n, char *d, int c) {
+static void pushClear(jmethodID jm, int c) {
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS, n, d);
 	jvalue *joa = malloc(c * sizeof(jvalue));
 	memset(joa, 0, c * sizeof(jvalue));
 	(*je)->CallStaticVoidMethodA(je, gCLS, jm, joa);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(joa);
 }
+static void pushStatus() {
+	HIMC hIMC = ImmGetContext(hWnd);
+	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
+	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_STAT],
+			ImmGetOpenStatus(hIMC));
+	if (sr) (*sr)->DetachCurrentThread(sr);
+	ImmReleaseContext(hWnd, hIMC);
+}
 static void killIME() {
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jmethodID jm = (*je)->GetStaticMethodID(je, gCLS,
-			"shouldKill", "()Z");
-	jboolean jb = (*je)->CallStaticBooleanMethod(je, gCLS, jm);
+	jboolean jb = (*je)->CallStaticBooleanMethod(je, gCLS, jms[JMID_KILL]);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	if (!jb) return;
 	HIMC hIMC = ImmGetContext(hWnd);
 	ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
 	ImmReleaseContext(hWnd, hIMC);
-}
-JNIEXPORT jboolean JNICALL Java_com_yogpc_gi_w32_JNIHandler_isOpenIME
-		(JNIEnv *je, jclass jc) {
-	HIMC hIMC = ImmGetContext(hWnd);
-	BOOL b = ImmGetOpenStatus(hIMC);
-	ImmReleaseContext(hWnd, hIMC);
-	return b;
 }
 LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	switch (msg) {
@@ -120,13 +119,12 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 		case WM_IME_COMPOSITION:
 			if (lp & GCS_RESULTSTR)
 				pushResult();
-			else if (lp & GCS_COMPSTR)
+			else if (lp & GCS_COMPSTR || lp & GCS_COMPATTR
+						|| lp & GCS_CURSORPOS)
 				pushComposition();
-			else if (!lp)
-				pushClear("cbComposition", "([C[B)V", 2);// FIXME needed?
 			return S_OK;
 		case WM_IME_ENDCOMPOSITION:
-			pushClear("cbComposition", "([C[B)V", 2);
+			pushClear(jms[JMID_COMP], 3);
 			return S_OK;
 		case WM_IME_NOTIFY:
 			switch (wp) {
@@ -135,33 +133,54 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 					pushCandidate();
 					return S_OK;
 				case IMN_CLOSECANDIDATE:
-					pushClear("cbCandidate", "([Ljava/lang/String;III)V", 4);
+					pushClear(jms[JMID_CAND], 4);
+					return S_OK;
+				case IMN_SETOPENSTATUS:
+					pushStatus();
 					return S_OK;
 			}
 			break;
+		case WM_INPUTLANGCHANGE:
+			pushStatus();
+			return S_OK;
 		case WM_IME_SETCONTEXT:
 			return DefWindowProc(phWnd, msg, wp, 0);
 	}
 	return CallWindowProc(pWndProc, phWnd, msg, wp, lp);
 }
+static void initGlobal(JNIEnv *je, jclass jc) {
+	gCLS = (*je)->NewGlobalRef(je, jc);
+	jms[JMID_RES ] = (*je)->GetStaticMethodID(je, gCLS,
+			"cbResult", "(Ljava/lang/String;)V");
+	jms[JMID_COMP] = (*je)->GetStaticMethodID(je, gCLS,
+			"cbComposition", "([C[BJ)V");
+	jms[JMID_CAND] = (*je)->GetStaticMethodID(je, gCLS,
+			"cbCandidate", "([Ljava/lang/String;III)V");
+	jms[JMID_KILL] = (*je)->GetStaticMethodID(je, gCLS,
+			"shouldKill", "()Z");
+	jms[JMID_STAT] = (*je)->GetStaticMethodID(je, gCLS,
+			"cbStatus", "(Z)V");
+}
 JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_setHWnd
 		(JNIEnv * je, jclass jc, jlong ptr) {
-	if (gCLS) (*je)->DeleteGlobalRef(je, gCLS);
-	gCLS = (*je)->NewGlobalRef(je, jc);
+	if (!gCLS) initGlobal(je, jc);
 	if (!ptr) return;
 	hWnd = (HWND)(LONG_PTR) ptr;
 	WNDPROC tWndProc = (WNDPROC) GetWindowLongPtr(hWnd, GWLP_WNDPROC);
 	if (tWndProc != WndProc && tWndProc) pWndProc = tWndProc;
 	SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR) WndProc);
 	SetActiveWindow(hWnd);
-	sendNullKeydown();//FIXME
+	sendNullKeydown();// FIXME
 }
 static HIMC lastHIMC = NULL;
 JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_linkIME
 		(JNIEnv *je, jclass jc) {
-	if (!lastHIMC || !hWnd) return;
-	ImmAssociateContext(hWnd, lastHIMC);
-	lastHIMC = NULL;
+	if (!hWnd) return;
+	if (lastHIMC) {
+		ImmAssociateContext(hWnd, lastHIMC);
+		lastHIMC = NULL;
+	}
+	pushStatus();
 }
 JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_unlinkIME
 		(JNIEnv *je, jclass jc) {

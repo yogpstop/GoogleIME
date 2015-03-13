@@ -3,3 +3,5 @@ GuiEditSign
 
 rendering
 committing
+
+reading window

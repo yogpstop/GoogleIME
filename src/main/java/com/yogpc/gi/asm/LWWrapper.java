@@ -9,6 +9,7 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
 
 public class LWWrapper implements ITweaker {
   private List<String> args;
+  private static boolean standalone = true;
 
   @Override
   public void acceptOptions(final List<String> arg, final File gameDir, final File assetsDir,
@@ -20,6 +21,7 @@ public class LWWrapper implements ITweaker {
     this.args.add(assetsDir.getAbsolutePath());
     this.args.add("--version");
     this.args.add(profile);
+    standalone = this.args.remove("-mc_ime-standalone");
   }
 
   @Override
@@ -34,7 +36,7 @@ public class LWWrapper implements ITweaker {
 
   @Override
   public String[] getLaunchArguments() {
-    return this.args.toArray(new String[this.args.size()]);
+    return standalone ? this.args.toArray(new String[this.args.size()]) : new String[0];
   }
 
 }
