@@ -73,14 +73,16 @@ static void pushCandidate() {
 	      size = ImmGetCandidateListW(hIMC, 0, cndl, size);
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jclass sc = (*je)->FindClass(je, "java/lang/String");
-	jobjectArray jsa = (*je)->NewObjectArray(je, cndl->dwCount, sc, NULL);
+	int max = cndl->dwCount - cndl->dwPageStart;
+	if (max > cndl->dwPageSize) max = cndl->dwPageSize;
+	jobjectArray jsa = (*je)->NewObjectArray(je, max, sc, NULL);
 	int i = 0;
-	for (; i < cndl->dwCount; i++)
-		(*je)->SetObjectArrayElement(je, jsa, i,
-				(*je)->NewString(je, (void*)cndl + cndl->dwOffset[i],
-				wcslen((void*)cndl + cndl->dwOffset[i])));
-	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_CAND], jsa,
-			cndl->dwSelection, cndl->dwPageStart, cndl->dwPageSize);
+	for (; i < max; i++)
+		(*je)->SetObjectArrayElement(je, jsa, i, (*je)->NewString(je,
+				       (void*)cndl + cndl->dwOffset[i + cndl->dwPageStart],
+				wcslen((void*)cndl + cndl->dwOffset[i + cndl->dwPageStart])));
+	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_CAND],
+			jsa, cndl->dwSelection - cndl->dwPageStart);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(cndl);
 	ImmReleaseContext(hWnd, hIMC);
@@ -117,11 +119,11 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 		case WM_IME_CHAR:
 			return S_OK;
 		case WM_IME_COMPOSITION:
-			if (lp & GCS_RESULTSTR)
-				pushResult();
-			else if (lp & GCS_COMPSTR || lp & GCS_COMPATTR
+			if (lp & GCS_COMPSTR || lp & GCS_COMPATTR
 						|| lp & GCS_CURSORPOS)
 				pushComposition();
+			if (lp & GCS_RESULTSTR)
+				pushResult();
 			return S_OK;
 		case WM_IME_ENDCOMPOSITION:
 			pushClear(jms[JMID_COMP], 3);
@@ -133,7 +135,7 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 					pushCandidate();
 					return S_OK;
 				case IMN_CLOSECANDIDATE:
-					pushClear(jms[JMID_CAND], 4);
+					pushClear(jms[JMID_CAND], 2);
 					return S_OK;
 				case IMN_SETOPENSTATUS:
 					pushStatus();
@@ -153,9 +155,9 @@ static void initGlobal(JNIEnv *je, jclass jc) {
 	jms[JMID_RES ] = (*je)->GetStaticMethodID(je, gCLS,
 			"cbResult", "(Ljava/lang/String;)V");
 	jms[JMID_COMP] = (*je)->GetStaticMethodID(je, gCLS,
-			"cbComposition", "([C[BJ)V");
+			"cbComposition", "([C[BI)V");
 	jms[JMID_CAND] = (*je)->GetStaticMethodID(je, gCLS,
-			"cbCandidate", "([Ljava/lang/String;III)V");
+			"cbCandidate", "([Ljava/lang/String;I)V");
 	jms[JMID_KILL] = (*je)->GetStaticMethodID(je, gCLS,
 			"shouldKill", "()Z");
 	jms[JMID_STAT] = (*je)->GetStaticMethodID(je, gCLS,

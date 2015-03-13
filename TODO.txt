@@ -1,7 +1,6 @@
 GuiScreenBook
 GuiEditSign
 
-rendering
-committing
+rendering(candidate, status)
 
-reading window
+(reading window)

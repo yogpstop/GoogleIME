@@ -1,7 +1,7 @@
 package com.yogpc.gi.dummy;
 
+@SuppressWarnings({"static-method"})
 public class Tessellator {
-
   public static Tessellator getInstance() {
     return null;
   }
@@ -13,5 +13,4 @@ public class Tessellator {
   public int draw() {
     return 0;
   }
-
 }

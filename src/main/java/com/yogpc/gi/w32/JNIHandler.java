@@ -2,7 +2,6 @@ package com.yogpc.gi.w32;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
@@ -41,7 +40,7 @@ public class JNIHandler {
       os.close();
       is.close();
       System.load(t.getCanonicalPath());
-    } catch (final IOException e) {
+    } catch (final Exception e) {
       e.printStackTrace();
     }
   }
@@ -65,6 +64,12 @@ public class JNIHandler {
     gwd = m;
   }
 
+  public native static void linkIME();
+
+  public native static void unlinkIME();
+
+  private native static void setHWnd(long ptr);
+
   public static final void updateHWnd() {
     try {
       setHWnd(gwd.getLong(cwd.get(null)));
@@ -73,40 +78,23 @@ public class JNIHandler {
     }
   }
 
-  public native static void linkIME();
-
-  public native static void unlinkIME();
-
-  private native static void setHWnd(long ptr);
+  public static final boolean shouldKill() {
+    return TFManager.shouldKill();
+  }
 
   public static final void cbResult(final String s) {
-    System.out.println("cbResult");
-    System.out.println(s);
+    TFManager.pushResult(s);
   }
 
-  public static final void cbComposition(final char[] c, final byte[] b, final long p) {
-    System.out.println("cbComposition");
-    if (c != null)
-      System.out.println(c);
-    if (b != null)
-      System.out.println(b);
-    System.out.println(p);
+  public static final void cbComposition(final char[] c, final byte[] b, final int p) {
+    TFManager.pushComposition(c, b, p);
   }
 
-  public static final void cbCandidate(final String[] s, final int curCand, final int showFrom,
-      final int showSize) {
-    System.out.println("cbCandidate");
-    System.out.println(s);
-    System.out.println(curCand);
-    System.out.println(showFrom);
-    System.out.println(showSize);
+  public static final void cbCandidate(final String[] s, final int c) {
+    TFManager.pushCandidate(s, c);
   }
 
   public static final void cbStatus(final boolean e) {
-    System.out.println(e);
-  }
-
-  public static final boolean shouldKill() {
-    return TFManager.shouldKill();
+    TFManager.pushStatus(e);
   }
 }

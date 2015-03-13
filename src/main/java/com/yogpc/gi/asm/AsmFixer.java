@@ -1,4 +1,4 @@
-package com.yogpc.gi;
+package com.yogpc.gi.asm;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.yogpc.gi;
+package com.yogpc.gi.asm;
 
 import java.util.HashMap;
 import java.util.Map;
