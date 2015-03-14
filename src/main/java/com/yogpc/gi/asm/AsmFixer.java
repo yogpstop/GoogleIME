@@ -45,23 +45,18 @@ public class AsmFixer extends ClassLoader {
       if ("<init>".equals(mn.name)
           && "(IILjava/lang/String;Lorg/objectweb/asm/MethodVisitor;Lorg/objectweb/asm/commons/Remapper;)V"
               .equals(mn.desc)) {
-        AbstractInsnNode in = mn.instructions.getFirst(), tmp;
-        while (in != null) {
-          if (in.getOpcode() == Opcodes.ILOAD && ((VarInsnNode) in).var == 2
-              || in.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) in).var == 3) {
-            tmp = in.getNext();
-            mn.instructions.remove(in);
-            in = tmp;
-            continue;
-          }
-          if (in.getOpcode() == Opcodes.INVOKESPECIAL) {
-            final MethodInsnNode min = (MethodInsnNode) in;
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.ILOAD && ((VarInsnNode) ain).var == 2
+              || ain.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) ain).var == 3) {
+            ain = ain.getPrevious();
+            mn.instructions.remove(ain.getNext());
+          } else if (ain.getOpcode() == Opcodes.INVOKESPECIAL) {
+            final MethodInsnNode min = (MethodInsnNode) ain;
             if (min.owner.equals("org/objectweb/asm/MethodVisitor") && min.name.equals("<init>")
                 && min.desc.equals("(IILjava/lang/String;Lorg/objectweb/asm/MethodVisitor;)V"))
               min.desc = "(ILorg/objectweb/asm/MethodVisitor;)V";
           }
-          in = in.getNext();
-        }
         break;
       }
   }
@@ -70,19 +65,17 @@ public class AsmFixer extends ClassLoader {
     for (final MethodNode mn : cn.methods)
       if ("remapEntries".equals(mn.name)
           && "(I[Ljava/lang/Object;)[Ljava/lang/Object;".equals(mn.desc)) {
-        AbstractInsnNode in = mn.instructions.getFirst();
         final LabelNode ln = new LabelNode();
-        while (in != null) {
-          if (!(in instanceof LabelNode)) {
-            mn.instructions.insertBefore(in, new VarInsnNode(Opcodes.ALOAD, 2));
-            mn.instructions.insertBefore(in, new JumpInsnNode(Opcodes.IFNONNULL, ln));
-            mn.instructions.insertBefore(in, new VarInsnNode(Opcodes.ALOAD, 2));
-            mn.instructions.insertBefore(in, new InsnNode(Opcodes.ARETURN));
-            mn.instructions.insertBefore(in, ln);
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (!(ain instanceof LabelNode)) {
+            mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 2));
+            mn.instructions.insertBefore(ain, new JumpInsnNode(Opcodes.IFNONNULL, ln));
+            mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 2));
+            mn.instructions.insertBefore(ain, new InsnNode(Opcodes.ARETURN));
+            mn.instructions.insertBefore(ain, ln);
             break;
           }
-          in = in.getNext();
-        }
         break;
       }
   }

@@ -15,14 +15,14 @@ public class GTFHandler extends Handler {
   }
 
   public void hookDraw(final int coff, final Object o, final int xpos, final int ypos,
-      final int width) {
+      final int width, final int height, final boolean bg) {
     // TODO render status and candidate
     if (this.attrs == null)
       return;
     final FontRenderer fr = (FontRenderer) o;
     final Tessellator tessellator = Tessellator.getInstance();
     final WorldRenderer wr = tessellator.getWorldRenderer();
-    final int by1 = ypos;
+    final int by1 = ypos + (bg ? (height - 8) / 2 : 0);
     final int by2 = by1 + 9;// FontRenderer.FONT_HEIGHT
     final int by3 = by2 + 1;
     final String str = this.gtf.getText();
@@ -30,7 +30,7 @@ public class GTFHandler extends Handler {
     GL11.glDisable(GL11.GL_TEXTURE_2D);
     GL11.glEnable(GL11.GL_COLOR_LOGIC_OP);
     GL11.glLogicOp(GL11.GL_XOR);
-    int pw = xpos;
+    int pw = xpos + (bg ? 4 : 0);
     boolean bold = false;
     for (int i = 0; i < str.length(); i++) {
       if (pw > xpos + width || i - this.from >= this.attrs.length)

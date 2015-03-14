@@ -41,8 +41,8 @@ public class Analyzer {
     final Map<String, Map<String, Integer>> members = new HashMap<String, Map<String, Integer>>();// DESC-NAME-COUNT
     final Map<String, Integer> trefs = new HashMap<String, Integer>();// FN=FD|MNMD-COUNT
     for (final MethodNode mn : cn.methods) {
-      AbstractInsnNode ain = mn.instructions.getFirst();
-      while (ain != null) {
+      AbstractInsnNode ain;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
         if (ain instanceof MethodInsnNode) {
           final MethodInsnNode min = (MethodInsnNode) ain;
           if (min.owner.equals(cn.name)) {
@@ -56,8 +56,6 @@ public class Analyzer {
             add1d(trefs, fin.name + "=" + fin.desc + "|" + mn.name + mn.desc);
           }
         }
-        ain = ain.getNext();
-      }
     }
     // getText, setText
     final Map<String, Integer> v_str = members.get("()Ljava/lang/String;");
@@ -98,14 +96,12 @@ public class Analyzer {
   private static void fontRenderer(final ClassNode cn) {
     for (final MethodNode mn : cn.methods)
       if ("(C)I".equals(mn.desc)) {
-        AbstractInsnNode ain = mn.instructions.getFirst();
-        while (ain != null) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain.getOpcode() == Opcodes.ICONST_M1) {
             Mapping.addM("FontRenderer", "getCharWidth", mn.name);
             break;
           }
-          ain = ain.getNext();
-        }
       }
   }
 
@@ -121,27 +117,21 @@ public class Analyzer {
   }
 
   private static void worldRenderer(final ClassNode cn) {
+    AbstractInsnNode ain;
     for (final MethodNode mn : cn.methods)
       if ("(DDD)V".equals(mn.desc)) {
-        AbstractInsnNode ain = mn.instructions.getFirst();
-        while (ain != null) {
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof MethodInsnNode
               && ((MethodInsnNode) ain).owner.equals("java/util/Iterator")) {
             Mapping.addM("WorldRenderer", "addVertex", mn.name);
             break;
           }
-          ain = ain.getNext();
-        }
-      } else if ("()V".equals(mn.desc)) {
-        AbstractInsnNode ain = mn.instructions.getFirst();
-        while (ain != null) {
+      } else if ("()V".equals(mn.desc))
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof IntInsnNode && ((IntInsnNode) ain).operand == 7) {
             Mapping.addM("WorldRenderer", "startDrawingQuads", mn.name);
             break;
           }
-          ain = ain.getNext();
-        }
-      }
   }
 
   private static void analyze(final byte[] ba) {

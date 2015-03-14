@@ -4,7 +4,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -31,21 +30,18 @@ public class Asm implements IClassTransformer {
   private static final String focuse[] = new String[2];
 
   private static final void key(final MethodNode mn, final String cn) {
-    AbstractInsnNode a;
-    final Iterator<AbstractInsnNode> i = mn.instructions.iterator();
-    while (i.hasNext()) {
-      a = i.next();
-      if (a instanceof FieldInsnNode && "Z".equals(((FieldInsnNode) a).desc)
-          && cn.equals(((FieldInsnNode) a).owner)) {
-        if (((FieldInsnNode) a).name.equals(focuse[0])
-            || ((FieldInsnNode) a).name.equals(focuse[1]))
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain instanceof FieldInsnNode && "Z".equals(((FieldInsnNode) ain).desc)
+          && cn.equals(((FieldInsnNode) ain).owner)) {
+        if (((FieldInsnNode) ain).name.equals(focuse[0])
+            || ((FieldInsnNode) ain).name.equals(focuse[1]))
           continue;
         if (focuse[0] == null)
-          focuse[0] = ((FieldInsnNode) a).name;
+          focuse[0] = ((FieldInsnNode) ain).name;
         else if (focuse[1] == null)
-          focuse[1] = ((FieldInsnNode) a).name;
+          focuse[1] = ((FieldInsnNode) ain).name;
       }
-    }
   }
 
   private static final void init(final MethodNode mn, final String cn) {
@@ -64,46 +60,56 @@ public class Asm implements IClassTransformer {
   }
 
   private static final void draw(final MethodNode mn, final String cn, final String fn,
-      final String frt, final String frf, final String xpos, final String ypos, final String width) {
-    AbstractInsnNode p = mn.instructions.getFirst();
-    while (p != null) {
-      if (p.getOpcode() == Opcodes.RETURN) {
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, "manager",
-            "Lcom/yogpc/gi/GTFHandler;"));
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, fn, "I"));
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, frf, frt));
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, xpos, "I"));
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, ypos, "I"));
-        mn.instructions.insertBefore(p, new VarInsnNode(Opcodes.ALOAD, 0));
-        mn.instructions.insertBefore(p, new FieldInsnNode(Opcodes.GETFIELD, cn, width, "I"));
-        mn.instructions.insertBefore(p, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
-            "com/yogpc/gi/GTFHandler", "hookDraw", "(ILjava/lang/Object;III)V", false));
+      final String frt, final String frf, final String xpos, final String ypos, final String width,
+      final String height) {
+    String bg = null;
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain instanceof FieldInsnNode && "Z".equals(((FieldInsnNode) ain).desc)
+          && cn.equals(((FieldInsnNode) ain).owner)) {
+        if (((FieldInsnNode) ain).name.equals(focuse[0])
+            || ((FieldInsnNode) ain).name.equals(focuse[1]))
+          continue;
+        bg = ((FieldInsnNode) ain).name;
       }
-      p = p.getNext();
-    }
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain.getOpcode() == Opcodes.RETURN) {
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, "manager",
+            "Lcom/yogpc/gi/GTFHandler;"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, fn, "I"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, frf, frt));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, xpos, "I"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, ypos, "I"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, width, "I"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, height, "I"));
+        mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
+        mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, bg, "Z"));
+        mn.instructions.insertBefore(ain, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
+            "com/yogpc/gi/GTFHandler", "hookDraw", "(ILjava/lang/Object;IIIIZ)V", false));
+      }
   }
 
   private static final void count(final MethodNode mn, final String cn,
       final Map<String, Integer> map) {
-    AbstractInsnNode p = mn.instructions.getFirst();
-    while (p != null) {
-      if ((p.getOpcode() == Opcodes.GETFIELD || p.getOpcode() == Opcodes.PUTFIELD)
-          && cn.equals(((FieldInsnNode) p).owner) && "I".equals(((FieldInsnNode) p).desc)) {
-        final Integer i = map.get(((FieldInsnNode) p).name);
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if ((ain.getOpcode() == Opcodes.GETFIELD || ain.getOpcode() == Opcodes.PUTFIELD)
+          && cn.equals(((FieldInsnNode) ain).owner) && "I".equals(((FieldInsnNode) ain).desc)) {
+        final Integer i = map.get(((FieldInsnNode) ain).name);
         final int j = i == null ? 1 : i.intValue() + 1;
-        map.put(((FieldInsnNode) p).name, Integer.valueOf(j));
+        map.put(((FieldInsnNode) ain).name, Integer.valueOf(j));
       }
-      p = p.getNext();
-    }
   }
 
   private static final void gtf(final ClassNode cn) {
-    cn.fields.add(new FieldNode(Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL, "manager",
+    cn.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
         "Lcom/yogpc/gi/GTFHandler;", null, null));
     final Map<String, Integer> map = new HashMap<String, Integer>();
     for (final MethodNode mnode : cn.methods)
@@ -116,13 +122,15 @@ public class Asm implements IClassTransformer {
         maxV = e.getValue().intValue();
         maxK = e.getKey();
       }
-    String frf = null, frt = null, xpos = null, ypos = null, width = null;
+    String frf = null, frt = null, xpos = null, ypos = null, width = null, height = null;
     for (final MethodNode mn : cn.methods)
-      if (mn.name.equals("<init>")) {
+      if ("(CI)Z".equals(mn.desc))
+        key(mn, cn.name);
+      else if (mn.name.equals("<init>")) {
         final int shift = mn.desc.charAt(1) == 'L' ? 0 : 1;
         int phase = -1;
-        AbstractInsnNode ain = mn.instructions.getFirst();
-        while (ain != null) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (phase < 0 && ain.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) ain).var == 0)
             phase = 0;
           else if (phase == 0 && ain.getOpcode() == Opcodes.ALOAD
@@ -141,6 +149,9 @@ public class Asm implements IClassTransformer {
               case 4:
                 width = ((FieldInsnNode) ain).name;
                 break;
+              case 5:
+                height = ((FieldInsnNode) ain).name;
+                break;
               case 9999:
                 frf = ((FieldInsnNode) ain).name;
                 frt = ((FieldInsnNode) ain).desc;
@@ -149,25 +160,22 @@ public class Asm implements IClassTransformer {
             phase = -1;
           } else
             phase = -1;
-          ain = ain.getNext();
-        }
       }
     for (final MethodNode mnode : cn.methods)
-      if ("(CI)Z".equals(mnode.desc))
-        key(mnode, cn.name);
-      else if ("<init>".equals(mnode.name))
+      if ("<init>".equals(mnode.name))
         init(mnode, cn.name);
+      // TODO instruction size
       else if ("()V".equals(mnode.desc) && mnode.instructions.size() > 150)
-        draw(mnode, cn.name, maxK, frt, frf, xpos, ypos, width);
+        draw(mnode, cn.name, maxK, frt, frf, xpos, ypos, width, height);
     for (final MethodNode mn : cn.methods) {
-      AbstractInsnNode ain = mn.instructions.getFirst();
-      while (ain != null) {
-        fs: if (ain.getOpcode() == Opcodes.PUTFIELD) {
+      AbstractInsnNode ain;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+        if (ain.getOpcode() == Opcodes.PUTFIELD) {
           final FieldInsnNode min = (FieldInsnNode) ain;
           if (!cn.name.equals(min.owner) || !"Z".equals(min.desc))
-            break fs;
+            continue;
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
-            break fs;
+            continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
               "com/yogpc/gi/TFManager", "hookFocuse", "(Lcom/yogpc/gi/GTFHandler;ZZ)V", false));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
@@ -178,8 +186,6 @@ public class Asm implements IClassTransformer {
               "Lcom/yogpc/gi/GTFHandler;"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         }
-        ain = ain.getNext();
-      }
     }
   }
 
@@ -220,13 +226,11 @@ public class Asm implements IClassTransformer {
     final List<String> map = new ArrayList<String>();
     for (final MethodNode mn : cn.methods)
       if ("(II)V".equals(mn.desc)) {
-        AbstractInsnNode ain = mn.instructions.getFirst();
-        while (ain != null) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof FieldInsnNode && ((FieldInsnNode) ain).owner.equals(cn.name)
               && ((FieldInsnNode) ain).desc.startsWith("L"))
             map.add("(" + ((FieldInsnNode) ain).desc + ")V");
-          ain = ain.getNext();
-        }
       }
     for (final MethodNode mn : cn.methods)
       if (map.contains(mn.desc)) {
@@ -238,13 +242,11 @@ public class Asm implements IClassTransformer {
   }
 
   private static boolean isMinecraft(final MethodNode mn) {
-    AbstractInsnNode ain = mn.instructions.getFirst();
-    while (ain != null) {
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
       if (ain instanceof LdcInsnNode
           && "########## GL ERROR ##########".equals(((LdcInsnNode) ain).cst))
         return true;
-      ain = ain.getNext();
-    }
     return false;
   }
 
@@ -263,20 +265,18 @@ public class Asm implements IClassTransformer {
     boolean modified = false;
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
     for (final MethodNode mn : cn.methods) {
-      AbstractInsnNode ain = mn.instructions.getFirst();
-      while (ain != null) {
-        fs: if (ain instanceof MethodInsnNode) {
+      AbstractInsnNode ain;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+        if (ain instanceof MethodInsnNode) {
           final MethodInsnNode min = (MethodInsnNode) ain;
           if (!"org/lwjgl/opengl/Display".equals(min.owner))
-            break fs;
+            continue;
           if (!hwndmethods.contains(min.name + min.desc))
-            break fs;
+            continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
               "com/yogpc/gi/TFManager", "updateWnd", "()V", false));
           modified = true;
         }
-        ain = ain.getNext();
-      }
     }
     if ("com.yogpc.gi.GTFHandler".equals(name) || "com.yogpc.gi.TFManager".equals(name)) {
       cn = gtfm(cn);
