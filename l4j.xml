@@ -1,0 +1,6 @@
+<launch4jConfig>
+  <headerType>gui</headerType>
+  <jar>target/GoogleIME-1.0.0.jar</jar>
+  <outfile>target/GoogleIME-1.0.0.exe</outfile>
+  <jre><minVersion>1.6.0</minVersion></jre>
+</launch4jConfig>

@@ -8,6 +8,7 @@ set G32OPT=-I"%JPRE32%\include" -I"%JPRE32%\include\win32" -L"%JPRE32%\lib"
 set G64OPT=-I"%JPRE64%\include" -I"%JPRE64%\include\win32" -L"%JPRE64%\lib"
 set GOPT2=-ljvm -limm32
 set FB=..\ForgeBuilder\target\ForgeBuilder-0.0.1-SNAPSHOT.jar
+set L4J=..\launch4j\launch4j.jar
 set GI=target\GoogleIME-1.0.0.jar
 set NCLS=com.yogpc.gi.w32.JNIHandler
 set NSRC=src\main\c\imm_jni.c
@@ -22,5 +23,6 @@ mkdir %MKDIR%
 "%JPRE32%bin\javah" -cp %GI% %NCLS%
 "%GPRE32%gcc" %GOPT1% -o %OUT32% %G32OPT% %NSRC% %GOPT2%
 "%JPRE64%bin\java" -jar %FB% .
+"%JPRE32%bin\java" -jar %L4J% l4j.xml
 DEL *.h
 pause
