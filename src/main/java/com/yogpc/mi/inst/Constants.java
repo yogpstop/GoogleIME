@@ -1,4 +1,4 @@
-package com.yogpc.gi.inst;
+package com.yogpc.mi.inst;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -41,6 +41,6 @@ public class Constants {
 
   // Wrapper for dependencies classpath solving
   public static final void main(final String[] arg) {
-    Swing.main(arg);
+    Swing.show();
   }
 }

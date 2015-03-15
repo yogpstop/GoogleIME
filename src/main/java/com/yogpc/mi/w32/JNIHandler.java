@@ -1,4 +1,4 @@
-package com.yogpc.gi.w32;
+package com.yogpc.mi.w32;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -8,7 +8,7 @@ import java.lang.reflect.Field;
 
 import org.lwjgl.opengl.Display;
 
-import com.yogpc.gi.TFManager;
+import com.yogpc.mi.TFManager;
 
 public class JNIHandler {
   private static final String getOsBit() {

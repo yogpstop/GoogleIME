@@ -1,5 +1,5 @@
 #include <windows.h>
-#include "com_yogpc_gi_w32_JNIHandler.h"
+#include "com_yogpc_mi_w32_JNIHandler.h"
 static HWND hWnd = NULL;
 static WNDPROC pWndProc = NULL;
 static jobject gCLS = NULL;
@@ -163,7 +163,7 @@ static void initGlobal(JNIEnv *je, jclass jc) {
 	jms[JMID_STAT] = (*je)->GetStaticMethodID(je, gCLS,
 			"cbStatus", "(Z)V");
 }
-JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_setHWnd
+JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_setHWnd
 		(JNIEnv * je, jclass jc, jlong ptr) {
 	if (!gCLS) initGlobal(je, jc);
 	if (!ptr) return;
@@ -175,7 +175,7 @@ JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_setHWnd
 	sendNullKeydown();// FIXME
 }
 static HIMC lastHIMC = NULL;
-JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_linkIME
+JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_linkIME
 		(JNIEnv *je, jclass jc) {
 	if (!hWnd) return;
 	if (lastHIMC) {
@@ -184,7 +184,7 @@ JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_linkIME
 	}
 	pushStatus();
 }
-JNIEXPORT void JNICALL Java_com_yogpc_gi_w32_JNIHandler_unlinkIME
+JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_unlinkIME
 		(JNIEnv *je, jclass jc) {
 	if (!hWnd) return;
 	HIMC hIMC = ImmAssociateContext(hWnd, 0);

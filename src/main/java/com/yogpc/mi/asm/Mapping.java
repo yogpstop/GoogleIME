@@ -1,4 +1,4 @@
-package com.yogpc.gi.asm;
+package com.yogpc.mi.asm;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +30,7 @@ public class Mapping extends Remapper {
 
   @Override
   public String mapMethodName(final String owner, final String name, final String desc) {
-    if (owner.startsWith("com/yogpc/gi/dummy/")) {
+    if (owner.startsWith("com/yogpc/mi/dummy/")) {
       final Map<String, String> min = mtd.get(owner.substring(19));
       if (min != null) {
         final String tmp = min.get(name);
@@ -44,7 +44,7 @@ public class Mapping extends Remapper {
 
   @Override
   public String map(final String typeName) {
-    if (typeName.startsWith("com/yogpc/gi/dummy/")) {
+    if (typeName.startsWith("com/yogpc/mi/dummy/")) {
       final String tmp = cls.get(typeName.substring(19));
       if (tmp != null)
         return tmp;

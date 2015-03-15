@@ -1,4 +1,4 @@
-package com.yogpc.gi;
+package com.yogpc.mi;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -6,12 +6,12 @@ import java.util.WeakHashMap;
 
 import org.lwjgl.opengl.GL11;
 
-import com.yogpc.gi.dummy.FontRenderer;
-import com.yogpc.gi.dummy.GuiEditSign;
-import com.yogpc.gi.dummy.GuiScreen;
-import com.yogpc.gi.dummy.GuiScreenBook;
-import com.yogpc.gi.dummy.Minecraft;
-import com.yogpc.gi.w32.JNIHandler;
+import com.yogpc.mi.dummy.FontRenderer;
+import com.yogpc.mi.dummy.GuiEditSign;
+import com.yogpc.mi.dummy.GuiScreen;
+import com.yogpc.mi.dummy.GuiScreenBook;
+import com.yogpc.mi.dummy.Minecraft;
+import com.yogpc.mi.w32.JNIHandler;
 
 public class TFManager {
   private static WeakReference<Handler> cur = new WeakReference<Handler>(null);

@@ -1,8 +1,6 @@
-package com.yogpc.gi.asm;
+package com.yogpc.mi.asm;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -226,20 +224,7 @@ public class Analyzer {
     }
   }
 
-  public static void anis(final URL url) throws IOException {
-    ZipEntry ze;
-    final InputStream is = url.openStream();
-    final ZipInputStream in = new ZipInputStream(is);
-    while ((ze = in.getNextEntry()) != null) {
-      if (ze.getName().toLowerCase().endsWith(".class"))
-        analyze(jar_entry(in, ze.getSize()));
-      in.closeEntry();
-    }
-    in.close();
-    is.close();
-  }
-
-  public static byte[] jar_entry(final InputStream in, final long size) throws IOException {
+  private static byte[] jar_entry(final InputStream in, final long size) throws IOException {
     byte[] data;
     if (size > 0) {
       data = new byte[(int) size];
@@ -258,9 +243,9 @@ public class Analyzer {
     return data;
   }
 
-  public static void main(final String[] arg) throws IOException {
+  static void anis(final URL url) throws IOException {
     ZipEntry ze;
-    final InputStream is = new FileInputStream(new File(arg[0]));
+    final InputStream is = url.openStream();
     final ZipInputStream in = new ZipInputStream(is);
     while ((ze = in.getNextEntry()) != null) {
       if (ze.getName().toLowerCase().endsWith(".class"))

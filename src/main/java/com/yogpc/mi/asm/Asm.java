@@ -1,4 +1,4 @@
-package com.yogpc.gi.asm;
+package com.yogpc.mi.asm;
 
 import java.io.InputStream;
 import java.net.URL;
@@ -51,12 +51,12 @@ public class Asm implements IClassTransformer {
       p = p.getPrevious();
     p = p.getPrevious();
     mn.instructions.insert(p, new FieldInsnNode(Opcodes.PUTFIELD, cn, "manager",
-        "Lcom/yogpc/gi/GTFHandler;"));
-    mn.instructions.insert(p, new MethodInsnNode(Opcodes.INVOKESPECIAL, "com/yogpc/gi/GTFHandler",
+        "Lcom/yogpc/mi/GTFHandler;"));
+    mn.instructions.insert(p, new MethodInsnNode(Opcodes.INVOKESPECIAL, "com/yogpc/mi/GTFHandler",
         "<init>", "(L" + cn + ";)V", false));
     mn.instructions.insert(p, new VarInsnNode(Opcodes.ALOAD, 0));
     mn.instructions.insert(p, new InsnNode(Opcodes.DUP));
-    mn.instructions.insert(p, new TypeInsnNode(Opcodes.NEW, "com/yogpc/gi/GTFHandler"));
+    mn.instructions.insert(p, new TypeInsnNode(Opcodes.NEW, "com/yogpc/mi/GTFHandler"));
     mn.instructions.insert(p, new VarInsnNode(Opcodes.ALOAD, 0));
   }
 
@@ -77,7 +77,7 @@ public class Asm implements IClassTransformer {
       if (ain.getOpcode() == Opcodes.RETURN) {
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, "manager",
-            "Lcom/yogpc/gi/GTFHandler;"));
+            "Lcom/yogpc/mi/GTFHandler;"));
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, fn, "I"));
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
@@ -93,7 +93,7 @@ public class Asm implements IClassTransformer {
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, bg, "Z"));
         mn.instructions.insertBefore(ain, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
-            "com/yogpc/gi/GTFHandler", "hookDraw", "(ILjava/lang/Object;IIIIZ)V", false));
+            "com/yogpc/mi/GTFHandler", "hookDraw", "(ILjava/lang/Object;IIIIZ)V", false));
       }
   }
 
@@ -111,7 +111,7 @@ public class Asm implements IClassTransformer {
 
   private static final void gtf(final ClassNode cn) {
     cn.fields.add(new FieldNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL, "manager",
-        "Lcom/yogpc/gi/GTFHandler;", null, null));
+        "Lcom/yogpc/mi/GTFHandler;", null, null));
     final Map<String, Integer> map = new HashMap<String, Integer>();
     for (final MethodNode mnode : cn.methods)
       if ("(I)V".equals(mnode.desc))
@@ -178,13 +178,13 @@ public class Asm implements IClassTransformer {
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
             continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/gi/TFManager", "hookFocuse", "(Lcom/yogpc/gi/GTFHandler;ZZ)V", false));
+              "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V", false));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[0], "Z"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, "manager",
-              "Lcom/yogpc/gi/GTFHandler;"));
+              "Lcom/yogpc/mi/GTFHandler;"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         }
     }
@@ -303,7 +303,7 @@ public class Asm implements IClassTransformer {
                   && ((MethodInsnNode) ain).desc.equals("()V")
                   && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
                 mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                    "com/yogpc/gi/TFManager", "hookDrawGui", "()V", false));
+                    "com/yogpc/mi/TFManager", "hookDrawGui", "()V", false));
                 break;
               }
             }
@@ -313,7 +313,7 @@ public class Asm implements IClassTransformer {
         final AbstractInsnNode a = mn.instructions.getFirst();
         mn.instructions.insertBefore(a, new VarInsnNode(Opcodes.ALOAD, 1));
         mn.instructions.insertBefore(a, new MethodInsnNode(Opcodes.INVOKESTATIC,
-            "com/yogpc/gi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V", false));
+            "com/yogpc/mi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V", false));
       }
   }
 
@@ -352,12 +352,12 @@ public class Asm implements IClassTransformer {
           if (!hwndmethods.contains(min.name + min.desc))
             continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/gi/TFManager", "updateWnd", "()V", false));
+              "com/yogpc/mi/TFManager", "updateWnd", "()V", false));
           modified = true;
         }
     }
-    if (name.startsWith("com.yogpc.gi.") && !name.startsWith("com.yogpc.gi.dummy.")
-        && !name.startsWith("com.yogpc.gi.asm.")) {
+    if (name.startsWith("com.yogpc.mi.") && !name.startsWith("com.yogpc.mi.dummy.")
+        && !name.startsWith("com.yogpc.mi.asm.")) {
       cn = gtfm(cn);
       modified = true;
     }

@@ -1,4 +1,4 @@
-package com.yogpc.gi.inst;
+package com.yogpc.mi.inst;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -35,6 +35,7 @@ public class Swing implements ActionListener {
     final ButtonGroup bg = new ButtonGroup();
     bg.add(gp);
     bg.add(gv);
+    jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     jf.setTitle("Minecraft IME installer");
     jf.setLayout(new BoxLayout(jf.getContentPane(), BoxLayout.Y_AXIS));
     jf.add(gp);
@@ -87,7 +88,7 @@ public class Swing implements ActionListener {
     }
   }
 
-  public static void main(final String[] arg) {
+  static final void show() {
     new Swing();
   }
 }

@@ -1,4 +1,4 @@
-package com.yogpc.gi.inst;
+package com.yogpc.mi.inst;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,7 +40,7 @@ public class Main {
         this.args.add(te);
       }
       this.args.add("--tweakClass");
-      this.args.add("com.yogpc.gi.asm.LWWrapper");
+      this.args.add("com.yogpc.mi.asm.LWWrapper");
       final JsonElement tl = je.get("minimumLauncherVersion");
       if (tl == null)
         this.lv = -1;
@@ -126,7 +126,7 @@ public class Main {
     out.add("minecraftArguments", new JsonPrimitive(sb.toString()));
     final JsonArray lib = new JsonArray();
     JsonObject tmp = new JsonObject();
-    tmp.add("name", new JsonPrimitive("com.yogpc.gi:GoogleIME:{version}"));
+    tmp.add("name", new JsonPrimitive("com.yogpc.mi:MCIME:{version}"));
     lib.add(tmp);
     tmp = new JsonObject();
     tmp.add("name", new JsonPrimitive("org.ow2.asm:asm-all:5.0.3"));
@@ -160,12 +160,12 @@ public class Main {
     final StringBuilder sb = new StringBuilder();
     sb.append("com").append(File.separatorChar);
     sb.append("yogpc").append(File.separatorChar);
-    sb.append("gi").append(File.separatorChar);
-    sb.append("GoogleIME").append(File.separatorChar);
+    sb.append("mi").append(File.separatorChar);
+    sb.append("MCIME").append(File.separatorChar);
     sb.append("{version}");
     final File ld = new File(Constants.MINECRAFT_LIBRARIES, sb.toString());
     ld.mkdirs();
-    final String fn = "GoogleIME-{version}.jar";
+    final String fn = "MCIME-{version}.jar";
     try {
       final InputStream is =
           Main.class.getProtectionDomain().getCodeSource().getLocation().openStream();

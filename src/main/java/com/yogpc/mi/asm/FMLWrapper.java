@@ -1,4 +1,4 @@
-package com.yogpc.gi.asm;
+package com.yogpc.mi.asm;
 
 import java.util.Map;
 
@@ -9,8 +9,8 @@ import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 public class FMLWrapper extends DummyModContainer implements IFMLLoadingPlugin {
   private static final ModMetadata md = new ModMetadata();
   static {
-    md.modId = "googleime";
-    md.name = "GoogleIME";
+    md.modId = "mcime";
+    md.name = "MCIME";
   }
 
   public FMLWrapper() {

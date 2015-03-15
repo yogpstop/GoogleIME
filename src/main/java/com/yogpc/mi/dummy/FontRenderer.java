@@ -1,4 +1,4 @@
-package com.yogpc.gi.dummy;
+package com.yogpc.mi.dummy;
 
 @SuppressWarnings({"static-method", "unused"})
 public class FontRenderer {

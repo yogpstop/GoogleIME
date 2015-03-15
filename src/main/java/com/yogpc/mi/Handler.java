@@ -1,10 +1,10 @@
-package com.yogpc.gi;
+package com.yogpc.mi;
 
 import org.lwjgl.opengl.GL11;
 
-import com.yogpc.gi.dummy.FontRenderer;
-import com.yogpc.gi.dummy.GuiScreen;
-import com.yogpc.gi.dummy.Minecraft;
+import com.yogpc.mi.dummy.FontRenderer;
+import com.yogpc.mi.dummy.GuiScreen;
+import com.yogpc.mi.dummy.Minecraft;
 
 public abstract class Handler {
   protected int from = -1;

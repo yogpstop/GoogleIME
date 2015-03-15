@@ -1,7 +1,7 @@
-package com.yogpc.gi;
+package com.yogpc.mi;
 
-import com.yogpc.gi.dummy.FontRenderer;
-import com.yogpc.gi.dummy.GuiTextField;
+import com.yogpc.mi.dummy.FontRenderer;
+import com.yogpc.mi.dummy.GuiTextField;
 
 public class GTFHandler extends Handler {
   private final GuiTextField gtf;

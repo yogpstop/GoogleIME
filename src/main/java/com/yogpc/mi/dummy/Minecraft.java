@@ -1,4 +1,4 @@
-package com.yogpc.gi.dummy;
+package com.yogpc.mi.dummy;
 
 public class Minecraft {
   public GuiScreen currentScreen;

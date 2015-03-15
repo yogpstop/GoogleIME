@@ -9,12 +9,12 @@ set G64OPT=-I"%JPRE64%\include" -I"%JPRE64%\include\win32" -L"%JPRE64%\lib"
 set GOPT2=-ljvm -limm32
 set FB=..\ForgeBuilder\target\ForgeBuilder-0.0.1-SNAPSHOT.jar
 set L4J=..\launch4j\launch4j.jar
-set GI=target\GoogleIME-1.0.0.jar
-set NCLS=com.yogpc.gi.w32.JNIHandler
+set GI=target\MCIME-1.0.0.jar
+set NCLS=com.yogpc.mi.w32.JNIHandler
 set NSRC=src\main\c\imm_jni.c
-set OUT64=src\main\resources\com\yogpc\gi\w32\MC-IME-64.dll
-set OUT32=src\main\resources\com\yogpc\gi\w32\MC-IME-32.dll
-set MKDIR=src\main\resources\com\yogpc\gi\w32
+set OUT64=src\main\resources\com\yogpc\mi\w32\MC-IME-64.dll
+set OUT32=src\main\resources\com\yogpc\mi\w32\MC-IME-32.dll
+set MKDIR=src\main\resources\com\yogpc\mi\w32
 cd %~dp0
 mkdir %MKDIR%
 "%JPRE64%bin\java" -jar %FB% .
