@@ -201,10 +201,11 @@ public class Analyzer {
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
     boolean fr = false, gtf = false, mc = false, gs = false;
     for (final MethodNode mn : cn.methods)
-      if ("(IIZ)I".equals(mn.desc)) {
+      // TODO Obfuscated detection
+      if ("(IIZ)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
         gtf = true;
         Mapping.addC("GuiTextField", cn.name);
-      } else if ("(ICZ)F".equals(mn.desc)) {
+      } else if ("(C)I".equals(mn.desc)) {
         fr = true;
         Mapping.addC("FontRenderer", cn.name);
       } else if (Asm.isMinecraft(mn)) {

@@ -336,6 +336,8 @@ public class Asm implements IClassTransformer {
 
   @Override
   public byte[] transform(final String name, final String transformedName, final byte[] ba) {
+    if (ba == null)
+      return null;
     if (!done)
       init();
     ClassNode cn = new ClassNode();
@@ -356,12 +358,12 @@ public class Asm implements IClassTransformer {
           modified = true;
         }
     }
-    if (name.startsWith("com.yogpc.mi.") && !name.startsWith("com.yogpc.mi.dummy.")
-        && !name.startsWith("com.yogpc.mi.asm.")) {
+    if (cn.name.startsWith("com/yogpc/mi/") && !cn.name.startsWith("com/yogpc/mi/dummy/")
+        && !cn.name.startsWith("com/yogpc/mi/asm/")) {
       cn = gtfm(cn);
       modified = true;
     }
-    if (name.length() < 4)// TODO Obfuscated detection
+    if (cn.name.indexOf('/') < 0)// TODO Obfuscated detection
       for (final MethodNode mn : cn.methods)
         if ("(IIZ)I".equals(mn.desc)) {
           gtf(cn);

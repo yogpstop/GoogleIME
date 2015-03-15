@@ -25,7 +25,7 @@ public class LWWrapper implements ITweaker {
     final int l = this.args.indexOf("--target");
     if (-1 < l && l + 1 < this.args.size())
       target = this.args.get(l + 1);
-    standalone = this.args.remove("-mc_ime-standalone");
+    standalone = this.args.remove("--mc_ime-standalone");
   }
 
   @Override

@@ -72,10 +72,12 @@ public class Swing implements ActionListener {
         nv = true;
         cp.setEnabled(false);
         rew.setEnabled(false);
+        rew.setSelected(false);
         cv.setEnabled(true);
         nsel = (String) cv.getSelectedItem();
       } else if (gp.isSelected()) {
         cp.setEnabled(true);
+        rew.setSelected(true);
         rew.setEnabled(true);
         cv.setEnabled(false);
         nsel = (String) cp.getSelectedItem();

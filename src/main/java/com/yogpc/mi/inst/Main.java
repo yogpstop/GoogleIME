@@ -34,11 +34,15 @@ public class Main {
           new ArrayList<String>(
               Arrays.asList(je.get("minecraftArguments").getAsString().split(" ")));
       final String te = je.get("mainClass").getAsString();
-      if (!"net.minecraft.client.main.Main".equals(te)
-          && !"net.minecraft.launchwrapper.Launch".equals(te)) {
+      if ("net.minecraft.launchwrapper.Launch".equals(te) && this.args.indexOf("--tweakClass") < 0) {
+        this.args.add("--target");
+        this.args.add("net.minecraft.client.Minecraft");
+      } else if (!"net.minecraft.client.main.Main".equals(te)) {
         this.args.add("--target");
         this.args.add(te);
       }
+      if (this.args.indexOf("--tweakClass") < 0)
+        this.args.add("--mc_ime-standalone");
       this.args.add("--tweakClass");
       this.args.add("com.yogpc.mi.asm.LWWrapper");
       final JsonElement tl = je.get("minimumLauncherVersion");
@@ -129,7 +133,24 @@ public class Main {
     tmp.add("name", new JsonPrimitive("com.yogpc.mi:MCIME:{version}"));
     lib.add(tmp);
     tmp = new JsonObject();
+    // TODO library duplication
+    tmp.add("name", new JsonPrimitive("net.sf.jopt-simple:jopt-simple:4.5"));
+    lib.add(tmp);
+    tmp = new JsonObject();
+    // TODO library duplication
     tmp.add("name", new JsonPrimitive("org.ow2.asm:asm-all:5.0.3"));
+    lib.add(tmp);
+    tmp = new JsonObject();
+    // TODO library duplication
+    tmp.add("name", new JsonPrimitive("org.lwjgl.lwjgl:lwjgl:2.9.1"));
+    lib.add(tmp);
+    tmp = new JsonObject();
+    // TODO library duplication
+    tmp.add("name", new JsonPrimitive("org.apache.logging.log4j:log4j-api:2.0-beta9"));
+    lib.add(tmp);
+    tmp = new JsonObject();
+    // TODO library duplication
+    tmp.add("name", new JsonPrimitive("org.apache.logging.log4j:log4j-core:2.0-beta9"));
     lib.add(tmp);
     tmp = new JsonObject();
     tmp.add("name", new JsonPrimitive("net.minecraft:launchwrapper:1.11"));
