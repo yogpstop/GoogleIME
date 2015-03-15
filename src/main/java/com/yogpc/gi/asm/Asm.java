@@ -131,7 +131,7 @@ public class Asm implements IClassTransformer {
         int phase = -1;
         AbstractInsnNode ain;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (phase < 0 && ain.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) ain).var == 0)
+          if (ain.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) ain).var == 0)
             phase = 0;
           else if (phase == 0 && ain.getOpcode() == Opcodes.ALOAD
               && ((VarInsnNode) ain).var == 1 + shift)
@@ -241,11 +241,22 @@ public class Asm implements IClassTransformer {
       }
   }
 
-  private static boolean isMinecraft(final MethodNode mn) {
+  static boolean isMinecraft(final MethodNode mn) {
     AbstractInsnNode ain;
     for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
       if (ain instanceof LdcInsnNode
           && "########## GL ERROR ##########".equals(((LdcInsnNode) ain).cst))
+        return true;
+    return false;
+  }
+
+  static boolean isKeyHook(final MethodNode mn) {
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain.getOpcode() == Opcodes.INVOKESTATIC
+          && "org/lwjgl/input/Keyboard".equals(((MethodInsnNode) ain).owner)
+          && "getEventKeyState".equals(((MethodInsnNode) ain).name)
+          && "()Z".equals(((MethodInsnNode) ain).desc))
         return true;
     return false;
   }
@@ -256,6 +267,16 @@ public class Asm implements IClassTransformer {
     hwndmethods.add("create()V");
     hwndmethods.add("setDisplayMode(Lorg/lwjgl/opengl/DisplayMode;)V");
     hwndmethods.add("setFullscreen(Z)V");
+  }
+
+  private static void gs(final ClassNode cn) {
+    for (final MethodNode mn : cn.methods) {
+      if (!mn.desc.equals("(IIF)V"))
+        continue;
+      final AbstractInsnNode fn = mn.instructions.getLast();
+      mn.instructions.insert(fn, new MethodInsnNode(Opcodes.INVOKESTATIC, "com/yogpc/gi/TFManager",
+          "hookDrawGui", "()V", false));
+    }
   }
 
   @Override
@@ -278,10 +299,13 @@ public class Asm implements IClassTransformer {
           modified = true;
         }
     }
-    if ("com.yogpc.gi.GTFHandler".equals(name) || "com.yogpc.gi.TFManager".equals(name)) {
+    if (name.startsWith("com.yogpc.gi.") && !name.startsWith("com.yogpc.gi.dummy.")
+        && !name.startsWith("com.yogpc.gi.asm.")) {
       cn = gtfm(cn);
       modified = true;
     }
+    boolean gs = false;
+    boolean mc = false;
     if (name.length() < 4)// TODO Obfuscated detection
       for (final MethodNode mn : cn.methods)
         if ("(IIZ)I".equals(mn.desc)) {
@@ -290,7 +314,13 @@ public class Asm implements IClassTransformer {
         } else if (isMinecraft(mn)) {
           mc(cn);
           modified = true;
-        }
+          mc = true;
+        } else if (isKeyHook(mn))
+          gs = true;
+    if (gs && !mc) {
+      gs(cn);
+      modified = true;
+    }
     if (!modified)
       return ba;
     final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);

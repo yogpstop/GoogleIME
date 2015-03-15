@@ -1,6 +1,7 @@
 GuiScreenBook
 GuiEditSign
 
-rendering(candidate, status)
+IME status rendering
+candidate rendering order
 
 (reading window)

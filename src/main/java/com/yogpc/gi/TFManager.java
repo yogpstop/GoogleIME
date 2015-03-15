@@ -11,6 +11,7 @@ import com.yogpc.gi.w32.JNIHandler;
 public class TFManager {
   private static WeakReference<Handler> cur = new WeakReference<Handler>(null);
   private static Map<GTFHandler, Long> map = new WeakHashMap<GTFHandler, Long>();
+  private static boolean enabled = false;
 
   public static final void hookShowGui(final Object o) {
     map.clear();
@@ -22,6 +23,12 @@ public class TFManager {
       cur = new WeakReference<Handler>(null);
       JNIHandler.unlinkIME();
     }
+  }
+
+  public static final void hookDrawGui() {
+    if (cur.get() == null || !enabled)
+      return;
+    // TODO status gui
   }
 
   public static final void hookFocuse(final GTFHandler o, final boolean fc, final boolean en) {
@@ -73,8 +80,6 @@ public class TFManager {
   }
 
   public static final void pushStatus(final boolean b) {
-    final Handler i = cur.get();
-    if (i != null)
-      i.pushStatus(b);
+    enabled = b;
   }
 }

@@ -6,7 +6,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -16,9 +18,9 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 public class Analyzer {
   private static final <K> void add1d(final Map<K, Integer> m, final K k) {
@@ -102,44 +104,71 @@ public class Analyzer {
             Mapping.addM("FontRenderer", "getCharWidth", mn.name);
             break;
           }
+      } else if ("(Ljava/lang/String;III)I".equals(mn.desc)) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.ICONST_0) {
+            Mapping.addM("FontRenderer", "drawString", mn.name);
+            break;
+          }
       }
   }
 
-  private static void tessellator(final ClassNode cn) {
+  private static void minecraft(final ClassNode cn) {
+    final List<String> map = new ArrayList<String>();
     for (final MethodNode mn : cn.methods)
-      if (("()L" + cn.name + ';').equals(mn.desc) && (Opcodes.ACC_STATIC & mn.access) != 0)
-        Mapping.addM("Tessellator", "getInstance", mn.name);
-      else if ("()I".equals(mn.desc))
-        Mapping.addM("Tessellator", "draw", mn.name);
-      // TODO may not working on older than 1.7.10
-      else if (mn.desc.startsWith("()L"))
-        Mapping.addM("Tessellator", "getWorldRenderer", mn.name);
+      if ("(II)V".equals(mn.desc)) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain instanceof FieldInsnNode && ((FieldInsnNode) ain).owner.equals(cn.name)
+              && ((FieldInsnNode) ain).desc.startsWith("L"))
+            map.add("(" + ((FieldInsnNode) ain).desc + ")V");
+      }
+    for (final MethodNode mn : cn.methods)
+      if ((mn.access & Opcodes.ACC_STATIC) != 0 && mn.desc.equals("()L" + cn.name + ";"))
+        Mapping.addM("Minecraft", "getMinecraft", mn.name);
+      else if (map.contains(mn.desc)) {
+        int phase = -1;
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain instanceof VarInsnNode)
+            phase = ((VarInsnNode) ain).var;
+          else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD) {
+            Mapping.addM("Minecraft", "currentScreen", ((FieldInsnNode) ain).name);
+            phase = -1;
+          } else
+            phase = -1;
+      }
   }
 
-  private static void worldRenderer(final ClassNode cn) {
-    AbstractInsnNode ain;
-    for (final MethodNode mn : cn.methods)
-      if ("(DDD)V".equals(mn.desc)) {
-        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain instanceof MethodInsnNode
-              && ((MethodInsnNode) ain).owner.equals("java/util/Iterator")) {
-            Mapping.addM("WorldRenderer", "addVertex", mn.name);
-            break;
-          }
-      } else if ("()V".equals(mn.desc))
-        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain instanceof IntInsnNode && ((IntInsnNode) ain).operand == 7) {
-            Mapping.addM("WorldRenderer", "startDrawingQuads", mn.name);
-            break;
-          }
+  private static void guiScreen(final ClassNode cn) {
+    for (final MethodNode mn : cn.methods) {
+      if (!mn.desc.startsWith("(L") || !mn.desc.endsWith(";II)V"))
+        continue;
+      if (mn.desc.substring(2, mn.desc.length() - 5).contains(";"))
+        continue;
+      int phase = -1;
+      AbstractInsnNode ain;
+      boolean swar = false;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+        if (ain instanceof VarInsnNode)
+          phase = ((VarInsnNode) ain).var;
+        else if (phase == 1 && ain.getOpcode() == Opcodes.GETFIELD) {
+          swar = true;
+          phase = -1;
+        } else if (swar && (phase == 2 || phase == 3) && ain.getOpcode() == Opcodes.PUTFIELD) {
+          Mapping.addM("GuiScreen", phase == 2 ? "width" : "height", ((FieldInsnNode) ain).name);
+          phase = -1;
+        } else
+          phase = -1;
+    }
   }
 
   private static void analyze(final byte[] ba) {
     final ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
-    boolean fr = false, wr = false, gtf = false;
-    int tes = 0;
+    boolean fr = false, gtf = false, mc = false, gs = false;
     for (final MethodNode mn : cn.methods)
       if ("(IIZ)I".equals(mn.desc)) {
         gtf = true;
@@ -147,25 +176,21 @@ public class Analyzer {
       } else if ("(ICZ)F".equals(mn.desc)) {
         fr = true;
         Mapping.addC("FontRenderer", cn.name);
-      } else if ("(DDDDD)V".equals(mn.desc) && !cn.name.contains("realms")) {// TODO class name
-        wr = true;
-        Mapping.addC("WorldRenderer", cn.name);
-      } else if (("()L" + cn.name + ";").equals(mn.desc) && (mn.access & Opcodes.ACC_STATIC) != 0)
-        tes |= 1;
-      else if ("<init>".equals(mn.name) && "(I)V".equals(mn.desc))
-        tes |= 2;
-      else if ("()I".equals(mn.desc))
-        tes |= 4;
-    if (tes == 7 && cn.methods.size() == 5) {
-      // TODO before than 1.8
-      Mapping.addC("Tessellator", cn.name);
-      tessellator(cn);
-    } else if (gtf)
+      } else if (Asm.isMinecraft(mn)) {
+        mc = true;
+        Mapping.addC("Minecraft", cn.name);
+      } else if (Asm.isKeyHook(mn))
+        gs = true;
+    if (gtf)
       guiTextField(cn);
     else if (fr)
       fontRenderer(cn);
-    else if (wr)
-      worldRenderer(cn);
+    else if (mc)
+      minecraft(cn);
+    else if (gs) {// always NOT mc
+      Mapping.addC("GuiScreen", cn.name);
+      guiScreen(cn);
+    }
   }
 
   public static void anis(final URL url) throws IOException {
