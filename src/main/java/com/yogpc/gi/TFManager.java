@@ -6,8 +6,11 @@ import java.util.WeakHashMap;
 
 import org.lwjgl.opengl.GL11;
 
+import com.yogpc.gi.dummy.FontRenderer;
 import com.yogpc.gi.dummy.GuiEditSign;
+import com.yogpc.gi.dummy.GuiScreen;
 import com.yogpc.gi.dummy.GuiScreenBook;
+import com.yogpc.gi.dummy.Minecraft;
 import com.yogpc.gi.w32.JNIHandler;
 
 public class TFManager {
@@ -31,7 +34,10 @@ public class TFManager {
     final Handler h = cur.get();
     if (!enabled || h == null)
       return;
-    // TODO status gui
+    final Minecraft mc = Minecraft.getMinecraft();
+    final FontRenderer fr = mc.fontRenderer;
+    final GuiScreen cs = mc.currentScreen;
+    fr.drawString("あ", cs.width - fr.getCharWidth('あ') - 2, cs.height - (9 + 2), 0x00FFFF);
     if (h.a == null)
       return;
     GL11.glPushMatrix();

@@ -1,6 +1,4 @@
 GuiScreenBook
 GuiEditSign
 
-IME status rendering
-
 (reading window)

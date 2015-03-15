@@ -18,6 +18,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
@@ -135,9 +136,30 @@ public class Analyzer {
             phase = ((VarInsnNode) ain).var;
           else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD) {
             Mapping.addM("Minecraft", "currentScreen", ((FieldInsnNode) ain).name);
-            phase = -1;
+            break;
           } else
             phase = -1;
+      } else if ("()V".equals(mn.desc)) {
+        int phase = 0;
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+              && ((String) ((LdcInsnNode) ain).cst).contains("/font/")
+              && !((String) ((LdcInsnNode) ain).cst).contains("alternate")
+              && !((String) ((LdcInsnNode) ain).cst).contains("sga"))
+            phase = 12;
+          else if (phase > 0 && ain.getOpcode() == Opcodes.INVOKESPECIAL
+              && ((MethodInsnNode) ain).desc.endsWith("Z)V"))
+            phase = -4;
+          else if (phase < 0 && ain.getOpcode() == Opcodes.PUTFIELD
+              && ((FieldInsnNode) ain).owner.equals(cn.name)) {
+            Mapping.addM("Minecraft", "fontRenderer", ((FieldInsnNode) ain).name);
+            break;
+          } else if (phase > 0)
+            phase--;
+          else if (phase < 0)
+            phase++;
+
       }
   }
 
