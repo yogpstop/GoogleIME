@@ -164,6 +164,17 @@ public class Analyzer {
     }
   }
 
+  private static boolean isKeyHook(final MethodNode mn) {
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain.getOpcode() == Opcodes.INVOKESTATIC
+          && "org/lwjgl/input/Keyboard".equals(((MethodInsnNode) ain).owner)
+          && "getEventKeyState".equals(((MethodInsnNode) ain).name)
+          && "()Z".equals(((MethodInsnNode) ain).desc))
+        return true;
+    return false;
+  }
+
   private static void analyze(final byte[] ba) {
     final ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
@@ -179,7 +190,7 @@ public class Analyzer {
       } else if (Asm.isMinecraft(mn)) {
         mc = true;
         Mapping.addC("Minecraft", cn.name);
-      } else if (Asm.isKeyHook(mn))
+      } else if (isKeyHook(mn))
         gs = true;
     if (gtf)
       guiTextField(cn);

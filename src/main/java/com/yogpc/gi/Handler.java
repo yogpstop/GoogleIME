@@ -86,40 +86,23 @@ public abstract class Handler {
     return r;
   }
 
-  private final void iRenderCandidate(final FontRenderer fr, final int xpos, final int ypos,
-      final int count, final int xmax) {
-    GL11.glPushMatrix();
-    GL11.glEnable(GL11.GL_ALPHA_TEST);
-    GL11.glDisable(GL11.GL_TEXTURE_2D);
-    GL11.glEnable(GL11.GL_BLEND);
-    GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-    final int bgn = this.clist.length == count ? 0 : this.cpos - count / 2;
-    GL11.glColor4f(0, 0, 0, 127.0F);
-    GL11.glBegin(GL11.GL_QUADS);
-    GL11.glVertex3f(xpos, ypos, 0);
-    GL11.glVertex3f(xpos, ypos + count * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glVertex3f(xmax, ypos + count * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glVertex3f(xmax, ypos, 0);
-    GL11.glEnd();
-    GL11.glDisable(GL11.GL_BLEND);
-    GL11.glEnable(GL11.GL_COLOR_LOGIC_OP);
-    GL11.glLogicOp(GL11.GL_XOR);
-    GL11.glColor4f(0, 0, 255.0F, 255.0F);
-    GL11.glBegin(GL11.GL_QUADS);
-    GL11.glVertex3f(xpos, ypos + (this.cpos - bgn) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glVertex3f(xpos, ypos + (this.cpos - bgn + 1) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glVertex3f(xmax, ypos + (this.cpos - bgn + 1) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glVertex3f(xmax, ypos + (this.cpos - bgn) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
-    GL11.glEnd();
-    GL11.glDisable(GL11.GL_COLOR_LOGIC_OP);
-    GL11.glEnable(GL11.GL_TEXTURE_2D);
-    int cypos = ypos;
-    for (int i = 0; i < count; i++) {
-      fr.drawString(this.clist[i + bgn], xpos, cypos + 1, 0xFFFFFF);
-      cypos += 9/* FontRenderer.FONT_HEIGHT */+ 2;
+  static final class C {
+    final FontRenderer fr;
+    final int xpos;
+    final int ypos;
+    final int count;
+    final int xmax;
+
+    C(final FontRenderer pfr, final int pxpos, final int pypos, final int pcount, final int pxmax) {
+      this.fr = pfr;
+      this.xpos = pxpos;
+      this.ypos = pypos;
+      this.count = pcount;
+      this.xmax = pxmax;
     }
-    GL11.glPopMatrix();
   }
+
+  C a;
 
   protected final void renderCandidate(final FontRenderer fr, final int xpos, final int ypos1,
       final int ypos2) {
@@ -134,8 +117,9 @@ public abstract class Handler {
     final boolean top = ypos1 > aylen2;
     // FontRenderer.FONT_HEIGHT = 9
     final int count = Math.min(this.clist.length, (top ? ypos1 : aylen2) / (9 + 2));
-    iRenderCandidate(fr, gs.width < xpos + xlen ? gs.width - xlen : xpos, top ? ypos1 - count
-        * (9/* FontRenderer.FONT_HEIGHT */+ 2) : ypos2, count, xpos + xlen);
+    this.a =
+        new C(fr, gs.width < xpos + xlen ? gs.width - xlen : xpos, top ? ypos1 - count * (9 + 2)
+            : ypos2, count, xpos + xlen);
   }
 
   protected final void renderOverride(final String str, final FontRenderer fr, final int xpos,
@@ -173,7 +157,7 @@ public abstract class Handler {
       if (i < this.from)
         continue;
       final int attr = this.attrs[i - this.from];
-      GL11.glColor4f(255.0F, 0, 0, 255.0F);
+      GL11.glColor4f(1, 0, 0, 1);
       GL11.glBegin(GL11.GL_QUADS);
       GL11.glVertex3f(w, ypos3, 0);
       GL11.glVertex3f(xposc, ypos3, 0);
@@ -181,7 +165,7 @@ public abstract class Handler {
       GL11.glVertex3f(w, ypos2, 0);
       GL11.glEnd();
       if (attr == 1 || attr == 3) {
-        GL11.glColor4f(255.0F, 255.0F, 255.0F, 255.0F);
+        GL11.glColor4f(1, 1, 1, 1);
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glVertex3f(w, ypos2, 0);
         GL11.glVertex3f(xposc, ypos2, 0);
@@ -190,7 +174,7 @@ public abstract class Handler {
         GL11.glEnd();
       }
       if (attr == 1 || attr == 2) {
-        GL11.glColor4f(0, 0, 255.0F, 255.0F);
+        GL11.glColor4f(0, 0, 1, 1);
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glVertex3f(w, ypos2, 0);
         GL11.glVertex3f(xposc, ypos2, 0);

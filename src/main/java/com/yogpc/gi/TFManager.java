@@ -4,6 +4,8 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import org.lwjgl.opengl.GL11;
+
 import com.yogpc.gi.dummy.GuiEditSign;
 import com.yogpc.gi.dummy.GuiScreenBook;
 import com.yogpc.gi.w32.JNIHandler;
@@ -26,9 +28,46 @@ public class TFManager {
   }
 
   public static final void hookDrawGui() {
-    if (cur.get() == null || !enabled)
+    final Handler h = cur.get();
+    if (!enabled || h == null)
       return;
     // TODO status gui
+    if (h.a == null)
+      return;
+    GL11.glPushMatrix();
+    GL11.glEnable(GL11.GL_ALPHA_TEST);
+    GL11.glDisable(GL11.GL_TEXTURE_2D);
+    GL11.glEnable(GL11.GL_BLEND);
+    GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    final int bgn = h.clist.length == h.a.count ? 0 : h.cpos - h.a.count / 2;
+    GL11.glColor4f(0, 0, 0, 0.5F);
+    GL11.glBegin(GL11.GL_QUADS);
+    GL11.glVertex3f(h.a.xpos, h.a.ypos, 0);
+    GL11.glVertex3f(h.a.xpos, h.a.ypos + h.a.count * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
+    GL11.glVertex3f(h.a.xmax, h.a.ypos + h.a.count * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
+    GL11.glVertex3f(h.a.xmax, h.a.ypos, 0);
+    GL11.glEnd();
+    GL11.glDisable(GL11.GL_BLEND);
+    GL11.glEnable(GL11.GL_COLOR_LOGIC_OP);
+    GL11.glLogicOp(GL11.GL_XOR);
+    GL11.glColor4f(0, 0, 1, 1);
+    GL11.glBegin(GL11.GL_QUADS);
+    GL11.glVertex3f(h.a.xpos, h.a.ypos + (h.cpos - bgn) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
+    GL11.glVertex3f(h.a.xpos, h.a.ypos + (h.cpos - bgn + 1) * (9/* FontRenderer.FONT_HEIGHT */+ 2),
+        0);
+    GL11.glVertex3f(h.a.xmax, h.a.ypos + (h.cpos - bgn + 1) * (9/* FontRenderer.FONT_HEIGHT */+ 2),
+        0);
+    GL11.glVertex3f(h.a.xmax, h.a.ypos + (h.cpos - bgn) * (9/* FontRenderer.FONT_HEIGHT */+ 2), 0);
+    GL11.glEnd();
+    GL11.glDisable(GL11.GL_COLOR_LOGIC_OP);
+    GL11.glEnable(GL11.GL_TEXTURE_2D);
+    int cypos = h.a.ypos;
+    for (int i = 0; i < h.a.count; i++) {
+      h.a.fr.drawString(h.clist[i + bgn], h.a.xpos, cypos + 1, 0xFFFFFF);
+      cypos += 9/* FontRenderer.FONT_HEIGHT */+ 2;
+    }
+    GL11.glPopMatrix();
+    h.a = null;
   }
 
   public static final void hookFocuse(final GTFHandler o, final boolean fc, final boolean en) {

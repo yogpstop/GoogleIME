@@ -20,6 +20,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -191,29 +192,53 @@ public class Asm implements IClassTransformer {
 
   private static boolean done = false;
 
+  private static final void init() {
+    try {
+      final URL[] urls = Launch.classLoader.getURLs();
+      for (final URL url : urls) {
+        boolean isTarget = false;
+        ZipEntry ze;
+        final InputStream is = url.openStream();
+        final ZipInputStream in = new ZipInputStream(is);
+        while ((ze = in.getNextEntry()) != null) {
+          if (ze.getName().startsWith("META-INF/MOJANG")) {
+            isTarget = true;
+            break;
+          }
+          in.closeEntry();
+        }
+        in.close();
+        is.close();
+        if (isTarget) {
+          Analyzer.anis(url);
+          done = true;
+        }
+      }
+    } catch (final Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static final void fr(final ClassNode cn) {
+    AbstractInsnNode ain;
+    for (final MethodNode mn : cn.methods)
+      if ("(C)I".equals(mn.desc)) {
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.ICONST_M1) {
+            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+              if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
+                ((IntInsnNode) ain).operand = 15;
+            break;
+          }
+        // Optifine
+      } else if ("(C)F".equals(mn.desc))
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
+            ((IntInsnNode) ain).operand = 15;
+  }
+
   private static final ClassNode gtfm(final ClassNode cn) {
     try {
-      if (!done) {
-        final URL[] urls = Launch.classLoader.getURLs();
-        for (final URL url : urls) {
-          boolean isTarget = false;
-          ZipEntry ze;
-          final InputStream is = url.openStream();
-          final ZipInputStream in = new ZipInputStream(is);
-          while ((ze = in.getNextEntry()) != null) {
-            if (ze.getName().startsWith("META-INF/MOJANG")) {
-              isTarget = true;
-              break;
-            }
-            in.closeEntry();
-          }
-          in.close();
-          is.close();
-          if (isTarget)
-            Analyzer.anis(url);
-        }
-        done = true;
-      }
       final ClassNode out = new ClassNode();
       cn.accept(AsmFixer.InitAdapter(out, Mapping.I));
       return out;
@@ -223,17 +248,68 @@ public class Asm implements IClassTransformer {
   }
 
   private static void mc(final ClassNode cn) {
+    AbstractInsnNode ain;
     final List<String> map = new ArrayList<String>();
-    for (final MethodNode mn : cn.methods)
-      if ("(II)V".equals(mn.desc)) {
-        AbstractInsnNode ain;
+    final List<String> bl = new ArrayList<String>();
+    parent: for (final MethodNode mn : cn.methods) {
+      if ("(II)V".equals(mn.desc))
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof FieldInsnNode && ((FieldInsnNode) ain).owner.equals(cn.name)
               && ((FieldInsnNode) ain).desc.startsWith("L"))
             map.add("(" + ((FieldInsnNode) ain).desc + ")V");
-      }
+      if (mn.desc.endsWith(";Ljava/lang/String;)V"))
+        continue;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+        if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+            && ((String) ((LdcInsnNode) ain).cst).contains("chunk update"))
+          continue parent;
+      for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+        if (ain.getOpcode() == Opcodes.GETFIELD && ((FieldInsnNode) ain).owner.equals(cn.name)
+            && ((FieldInsnNode) ain).desc.charAt(0) == 'L'
+            && !bl.contains(((FieldInsnNode) ain).name))
+          bl.add(((FieldInsnNode) ain).name);
+    }
     for (final MethodNode mn : cn.methods)
-      if (map.contains(mn.desc)) {
+      if ("()V".equals(mn.desc)) {
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+              && ((String) ((LdcInsnNode) ain).cst).contains("chunk update")) {
+            final Map<String, Integer> m = new HashMap<String, Integer>();
+            final Map<String, String> nd = new HashMap<String, String>();
+            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+              if (ain.getOpcode() == Opcodes.GETFIELD
+                  && ((FieldInsnNode) ain).owner.equals(cn.name)
+                  && ((FieldInsnNode) ain).desc.charAt(0) == 'L') {
+                Integer i = m.get(((FieldInsnNode) ain).name);
+                if (i == null)
+                  i = Integer.valueOf(1);
+                else
+                  i = Integer.valueOf(i.intValue() + 1);
+                m.put(((FieldInsnNode) ain).name, i);
+                nd.put(((FieldInsnNode) ain).name, ((FieldInsnNode) ain).desc.substring(1,
+                    ((FieldInsnNode) ain).desc.length() - 1));
+              }
+            String s = null;
+            for (final Map.Entry<String, Integer> e : m.entrySet())
+              if (e.getValue().intValue() == 1 && !bl.contains(e.getKey()))
+                s = e.getKey();
+            int phase = -1;
+            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext()) {
+              if (ain.getOpcode() == Opcodes.GETFIELD
+                  && ((FieldInsnNode) ain).owner.equals(cn.name)
+                  && ((FieldInsnNode) ain).name.equals(s))
+                phase = 0;
+              if (phase == 0 && ain.getOpcode() == Opcodes.INVOKEVIRTUAL
+                  && ((MethodInsnNode) ain).desc.equals("()V")
+                  && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
+                mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
+                    "com/yogpc/gi/TFManager", "hookDrawGui", "()V", false));
+                break;
+              }
+            }
+            break;
+          }
+      } else if (map.contains(mn.desc)) {
         final AbstractInsnNode a = mn.instructions.getFirst();
         mn.instructions.insertBefore(a, new VarInsnNode(Opcodes.ALOAD, 1));
         mn.instructions.insertBefore(a, new MethodInsnNode(Opcodes.INVOKESTATIC,
@@ -250,17 +326,6 @@ public class Asm implements IClassTransformer {
     return false;
   }
 
-  static boolean isKeyHook(final MethodNode mn) {
-    AbstractInsnNode ain;
-    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-      if (ain.getOpcode() == Opcodes.INVOKESTATIC
-          && "org/lwjgl/input/Keyboard".equals(((MethodInsnNode) ain).owner)
-          && "getEventKeyState".equals(((MethodInsnNode) ain).name)
-          && "()Z".equals(((MethodInsnNode) ain).desc))
-        return true;
-    return false;
-  }
-
   private static final List<String> hwndmethods = new ArrayList<String>();
   static {
     hwndmethods.add("create(Lorg/lwjgl/opengl/PixelFormat;)V");
@@ -269,18 +334,10 @@ public class Asm implements IClassTransformer {
     hwndmethods.add("setFullscreen(Z)V");
   }
 
-  private static void gs(final ClassNode cn) {
-    for (final MethodNode mn : cn.methods) {
-      if (!mn.desc.equals("(IIF)V"))
-        continue;
-      final AbstractInsnNode fn = mn.instructions.getLast();
-      mn.instructions.insert(fn, new MethodInsnNode(Opcodes.INVOKESTATIC, "com/yogpc/gi/TFManager",
-          "hookDrawGui", "()V", false));
-    }
-  }
-
   @Override
   public byte[] transform(final String name, final String transformedName, final byte[] ba) {
+    if (!done)
+      init();
     ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
     boolean modified = false;
@@ -304,8 +361,6 @@ public class Asm implements IClassTransformer {
       cn = gtfm(cn);
       modified = true;
     }
-    boolean gs = false;
-    boolean mc = false;
     if (name.length() < 4)// TODO Obfuscated detection
       for (final MethodNode mn : cn.methods)
         if ("(IIZ)I".equals(mn.desc)) {
@@ -314,13 +369,10 @@ public class Asm implements IClassTransformer {
         } else if (isMinecraft(mn)) {
           mc(cn);
           modified = true;
-          mc = true;
-        } else if (isKeyHook(mn))
-          gs = true;
-    if (gs && !mc) {
-      gs(cn);
-      modified = true;
-    }
+        } else if ("(ICZ)F".equals(mn.desc)) {
+          fr(cn);
+          modified = true;
+        }
     if (!modified)
       return ba;
     final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
