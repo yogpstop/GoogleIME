@@ -98,18 +98,18 @@ public class Analyzer {
     for (final MethodNode mn : cn.methods)
       if ("(C)I".equals(mn.desc)) {
         AbstractInsnNode ain;
+        boolean found = false;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain.getOpcode() == Opcodes.ICONST_M1) {
-            Mapping.addM("FontRenderer", "getCharWidth", mn.name);
-            break;
-          }
+          if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+              && ((String) ((LdcInsnNode) ain).cst).equals("0123456789abcdef"))
+            found = true;
+        if (!found)
+          Mapping.addM("FontRenderer", "getCharWidth", mn.name);
       } else if ("(Ljava/lang/String;III)I".equals(mn.desc)) {
         AbstractInsnNode ain;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain.getOpcode() == Opcodes.ICONST_0) {
+          if (ain.getOpcode() == Opcodes.ICONST_0)
             Mapping.addM("FontRenderer", "drawString", mn.name);
-            break;
-          }
       }
   }
 
@@ -132,10 +132,9 @@ public class Analyzer {
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof VarInsnNode)
             phase = ((VarInsnNode) ain).var;
-          else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD) {
+          else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD)
             Mapping.addM("Minecraft", "currentScreen", ((FieldInsnNode) ain).name);
-            break;
-          } else
+          else
             phase = -1;
       } else if ("()V".equals(mn.desc)) {
         int phase = 0;
@@ -150,10 +149,9 @@ public class Analyzer {
               && ((MethodInsnNode) ain).desc.endsWith("Z)V"))
             phase = -4;
           else if (phase < 0 && ain.getOpcode() == Opcodes.PUTFIELD
-              && ((FieldInsnNode) ain).owner.equals(cn.name)) {
+              && ((FieldInsnNode) ain).owner.equals(cn.name))
             Mapping.addM("Minecraft", "fontRenderer", ((FieldInsnNode) ain).name);
-            break;
-          } else if (phase > 0)
+          else if (phase > 0)
             phase--;
           else if (phase < 0)
             phase++;

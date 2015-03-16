@@ -35,57 +35,67 @@ static JNIEnv *getJE(JavaVM **sr) {
 static void pushResult() {
 	HIMC  hIMC = ImmGetContext(hWnd);
 	LONG  ssiz = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR , NULL, 0);
-	jchar *str = malloc(ssiz);
+	jchar *str = malloc(ssiz > 0 ? ssiz : 0);
+	if (ssiz > 0 && str)
 	      ssiz = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR , str, ssiz);
-	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jstring js = (*je)->NewString(je, str, ssiz / sizeof(jchar));
-	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_RES], js);
-	if (sr) (*sr)->DetachCurrentThread(sr);
-	free(str);
 	ImmReleaseContext(hWnd, hIMC);
+	if (ssiz >= 0 && str) {
+		JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
+		jstring js = (*je)->NewString(je, str, ssiz / sizeof(jchar));
+		(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_RES], js);
+		if (sr) (*sr)->DetachCurrentThread(sr);
+	}
+	free(str);
 	sendNullKeydown();// FIXME
 }
 static void pushComposition() {
 	HIMC  hIMC = ImmGetContext(hWnd);
 	LONG  size = ImmGetCompositionStringW(hIMC, GCS_COMPATTR, NULL, 0);
-	jbyte *ret = malloc(size);
+	jbyte *ret = malloc(size > 0 ? size : 0);
+	if (size > 0 && ret)
 	      size = ImmGetCompositionStringW(hIMC, GCS_COMPATTR, ret, size);
 	LONG  ssiz = ImmGetCompositionStringW(hIMC, GCS_COMPSTR , NULL, 0);
-	jchar *str = malloc(ssiz);
+	jchar *str = malloc(ssiz > 0 ? ssiz : 0);
+	if (ssiz > 0 && str)
 	      ssiz = ImmGetCompositionStringW(hIMC, GCS_COMPSTR , str, ssiz);
 	LONG   csr = ImmGetCompositionStringW(hIMC, GCS_CURSORPOS, NULL, 0);
-	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jbyteArray jba = (*je)->NewByteArray(je, size / sizeof(jbyte));
-	(*je)->SetByteArrayRegion(je, jba, 0, size / sizeof(jbyte), ret);
-	jcharArray jca = (*je)->NewCharArray(je, ssiz / sizeof(jchar));
-	(*je)->SetCharArrayRegion(je, jca, 0, ssiz / sizeof(jchar), str);
-	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_COMP], jca, jba, csr);
-	if (sr) (*sr)->DetachCurrentThread(sr);
+	ImmReleaseContext(hWnd, hIMC);
+	if (size >= 0 && ssiz >= 0 && csr >= 0 && ret && str) {
+		JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
+		jbyteArray jba = (*je)->NewByteArray(je, size / sizeof(jbyte));
+		(*je)->SetByteArrayRegion(je, jba, 0, size / sizeof(jbyte), ret);
+		jcharArray jca = (*je)->NewCharArray(je, ssiz / sizeof(jchar));
+		(*je)->SetCharArrayRegion(je, jca, 0, ssiz / sizeof(jchar), str);
+		(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_COMP], jca, jba, csr);
+		if (sr) (*sr)->DetachCurrentThread(sr);
+	}
 	free(str);
 	free(ret);
-	ImmReleaseContext(hWnd, hIMC);
 }
 static void pushCandidate() {
 	// FIXME ImmGetCandidateListCount
 	HIMC  hIMC = ImmGetContext(hWnd);
-	LONG  size = ImmGetCandidateListW(hIMC, 0, NULL, 0);
+	DWORD size = ImmGetCandidateListW(hIMC, 0, NULL, 0);
 	LPCANDIDATELIST cndl = malloc(size);
+	if (size > 0 && cndl)
 	      size = ImmGetCandidateListW(hIMC, 0, cndl, size);
-	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
-	jclass sc = (*je)->FindClass(je, "java/lang/String");
-	int max = cndl->dwCount - cndl->dwPageStart;
-	if (max > cndl->dwPageSize) max = cndl->dwPageSize;
-	jobjectArray jsa = (*je)->NewObjectArray(je, max, sc, NULL);
-	int i = 0;
-	for (; i < max; i++)
-		(*je)->SetObjectArrayElement(je, jsa, i, (*je)->NewString(je,
+	ImmReleaseContext(hWnd, hIMC);
+	if (size >= 0 && cndl) {
+		JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
+		jclass sc = (*je)->FindClass(je, "java/lang/String");
+		int max = cndl->dwCount - cndl->dwPageStart;
+		if (max > cndl->dwPageSize) max = cndl->dwPageSize;
+		jobjectArray jsa = (*je)->NewObjectArray(je, max, sc, NULL);
+		int i = 0;
+		for (; i < max; i++)
+			(*je)->SetObjectArrayElement(je, jsa, i, (*je)->NewString(je,
 				       (void*)cndl + cndl->dwOffset[i + cndl->dwPageStart],
 				wcslen((void*)cndl + cndl->dwOffset[i + cndl->dwPageStart])));
-	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_CAND],
-			jsa, cndl->dwSelection - cndl->dwPageStart);
-	if (sr) (*sr)->DetachCurrentThread(sr);
+		(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_CAND],
+				jsa, cndl->dwSelection - cndl->dwPageStart);
+		if (sr) (*sr)->DetachCurrentThread(sr);
+	}
 	free(cndl);
-	ImmReleaseContext(hWnd, hIMC);
 }
 static void pushClear(jmethodID jm, int c) {
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);

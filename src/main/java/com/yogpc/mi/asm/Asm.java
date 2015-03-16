@@ -11,6 +11,7 @@ import java.util.zip.ZipInputStream;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
+import net.minecraft.launchwrapper.LogWrapper;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -27,6 +28,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
+@SuppressWarnings("deprecation")
 public class Asm implements IClassTransformer {
   private static final String focuse[] = new String[2];
 
@@ -50,6 +52,7 @@ public class Asm implements IClassTransformer {
     while (p.getOpcode() != Opcodes.RETURN)
       p = p.getPrevious();
     p = p.getPrevious();
+    LogWrapper.info("[MCIME] GTFHandler.<init> call on %s.%s%s", cn, mn.name, mn.desc);
     mn.instructions.insert(p, new FieldInsnNode(Opcodes.PUTFIELD, cn, "manager",
         "Lcom/yogpc/mi/GTFHandler;"));
     mn.instructions.insert(p, new MethodInsnNode(Opcodes.INVOKESPECIAL, "com/yogpc/mi/GTFHandler",
@@ -75,6 +78,7 @@ public class Asm implements IClassTransformer {
       }
     for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
       if (ain.getOpcode() == Opcodes.RETURN) {
+        LogWrapper.info("[MCIME] GTFHandler.hookDraw call on %s.%s%s", cn, mn.name, mn.desc);
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, "manager",
             "Lcom/yogpc/mi/GTFHandler;"));
@@ -177,6 +181,7 @@ public class Asm implements IClassTransformer {
             continue;
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
             continue;
+          LogWrapper.info("[MCIME] TFManager.hookFocuse call on %s.%s%s", cn.name, mn.name, mn.desc);
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
               "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V"));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
@@ -223,13 +228,16 @@ public class Asm implements IClassTransformer {
     AbstractInsnNode ain;
     for (final MethodNode mn : cn.methods)
       if ("(C)I".equals(mn.desc)) {
+        boolean isTarget = false;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain.getOpcode() == Opcodes.ICONST_M1) {
-            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-              if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
-                ((IntInsnNode) ain).operand = 15;
+            isTarget = true;
             break;
           }
+        if (isTarget)
+          for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+            if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
+              ((IntInsnNode) ain).operand = 15;
         // Optifine
       } else if ("(C)F".equals(mn.desc))
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
@@ -271,46 +279,47 @@ public class Asm implements IClassTransformer {
     }
     for (final MethodNode mn : cn.methods)
       if ("()V".equals(mn.desc)) {
+        boolean isTarget = false;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
-              && ((String) ((LdcInsnNode) ain).cst).contains("chunk update")) {
-            final Map<String, Integer> m = new HashMap<String, Integer>();
-            final Map<String, String> nd = new HashMap<String, String>();
-            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-              if (ain.getOpcode() == Opcodes.GETFIELD
-                  && ((FieldInsnNode) ain).owner.equals(cn.name)
-                  && ((FieldInsnNode) ain).desc.charAt(0) == 'L') {
-                Integer i = m.get(((FieldInsnNode) ain).name);
-                if (i == null)
-                  i = Integer.valueOf(1);
-                else
-                  i = Integer.valueOf(i.intValue() + 1);
-                m.put(((FieldInsnNode) ain).name, i);
-                nd.put(((FieldInsnNode) ain).name, ((FieldInsnNode) ain).desc.substring(1,
-                    ((FieldInsnNode) ain).desc.length() - 1));
-              }
-            String s = null;
-            for (final Map.Entry<String, Integer> e : m.entrySet())
-              if (e.getValue().intValue() == 1 && !bl.contains(e.getKey()))
-                s = e.getKey();
-            int phase = -1;
-            for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext()) {
-              if (ain.getOpcode() == Opcodes.GETFIELD
-                  && ((FieldInsnNode) ain).owner.equals(cn.name)
-                  && ((FieldInsnNode) ain).name.equals(s))
-                phase = 0;
-              if (phase == 0 && ain.getOpcode() == Opcodes.INVOKEVIRTUAL
-                  && ((MethodInsnNode) ain).desc.equals("()V")
-                  && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
-                mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                    "com/yogpc/mi/TFManager", "hookDrawGui", "()V"));
-                break;
-              }
+              && ((String) ((LdcInsnNode) ain).cst).contains("chunk update"))
+            isTarget = true;
+        if (isTarget) {
+          final Map<String, Integer> m = new HashMap<String, Integer>();
+          final Map<String, String> nd = new HashMap<String, String>();
+          for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+            if (ain.getOpcode() == Opcodes.GETFIELD && ((FieldInsnNode) ain).owner.equals(cn.name)
+                && ((FieldInsnNode) ain).desc.charAt(0) == 'L') {
+              Integer i = m.get(((FieldInsnNode) ain).name);
+              if (i == null)
+                i = Integer.valueOf(1);
+              else
+                i = Integer.valueOf(i.intValue() + 1);
+              m.put(((FieldInsnNode) ain).name, i);
+              nd.put(((FieldInsnNode) ain).name,
+                  ((FieldInsnNode) ain).desc.substring(1, ((FieldInsnNode) ain).desc.length() - 1));
             }
-            break;
+          String s = null;
+          for (final Map.Entry<String, Integer> e : m.entrySet())
+            if (e.getValue().intValue() == 1 && !bl.contains(e.getKey()))
+              s = e.getKey();
+          int phase = -1;
+          for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext()) {
+            if (ain.getOpcode() == Opcodes.GETFIELD && ((FieldInsnNode) ain).owner.equals(cn.name)
+                && ((FieldInsnNode) ain).name.equals(s))
+              phase = 0;
+            if (phase == 0 && ain.getOpcode() == Opcodes.INVOKEVIRTUAL
+                && ((MethodInsnNode) ain).desc.equals("()V")
+                && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
+              LogWrapper.info("[MCIME] TFManager.hookDrawGui call on %s.%s%s", cn.name, mn.name, mn.desc);
+              mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
+                  "com/yogpc/mi/TFManager", "hookDrawGui", "()V"));
+            }
           }
+        }
       } else if (map.contains(mn.desc)) {
         final AbstractInsnNode a = mn.instructions.getFirst();
+        LogWrapper.info("[MCIME] TFManager.hookShowGui call on %s.%s%s", cn.name, mn.name, mn.desc);
         mn.instructions.insertBefore(a, new VarInsnNode(Opcodes.ALOAD, 1));
         mn.instructions.insertBefore(a, new MethodInsnNode(Opcodes.INVOKESTATIC,
             "com/yogpc/mi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V"));
@@ -353,6 +362,7 @@ public class Asm implements IClassTransformer {
             continue;
           if (!hwndmethods.contains(min.name + min.desc))
             continue;
+          LogWrapper.info("[MCIME] TFManager.updateWnd call on %s.%s%s", cn.name, mn.name, mn.desc);
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
               "com/yogpc/mi/TFManager", "updateWnd", "()V"));
           modified = true;

@@ -3,6 +3,8 @@ package com.yogpc.mi.asm;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.minecraft.launchwrapper.LogWrapper;
+
 import org.objectweb.asm.commons.Remapper;
 
 public class Mapping extends Remapper {
@@ -12,10 +14,12 @@ public class Mapping extends Remapper {
       new HashMap<String, Map<String, String>>();
 
   static void addC(final String c_raw, final String c_obf) {
+    LogWrapper.info("[MCIME] %s=%s", c_raw, c_obf);
     cls.put(c_raw, c_obf);
   }
 
   static String addM(final String c_raw, final String m_raw, final String m_obf) {
+    LogWrapper.info("[MCIME] %s.%s=%s", c_raw, m_raw, m_obf);
     Map<String, String> min = mtd.get(c_raw);
     if (min == null)
       mtd.put(c_raw, min = new HashMap<String, String>());
