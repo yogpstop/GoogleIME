@@ -53,7 +53,7 @@ public class Asm implements IClassTransformer {
     mn.instructions.insert(p, new FieldInsnNode(Opcodes.PUTFIELD, cn, "manager",
         "Lcom/yogpc/mi/GTFHandler;"));
     mn.instructions.insert(p, new MethodInsnNode(Opcodes.INVOKESPECIAL, "com/yogpc/mi/GTFHandler",
-        "<init>", "(L" + cn + ";)V", false));
+        "<init>", "(L" + cn + ";)V"));
     mn.instructions.insert(p, new VarInsnNode(Opcodes.ALOAD, 0));
     mn.instructions.insert(p, new InsnNode(Opcodes.DUP));
     mn.instructions.insert(p, new TypeInsnNode(Opcodes.NEW, "com/yogpc/mi/GTFHandler"));
@@ -93,7 +93,7 @@ public class Asm implements IClassTransformer {
         mn.instructions.insertBefore(ain, new VarInsnNode(Opcodes.ALOAD, 0));
         mn.instructions.insertBefore(ain, new FieldInsnNode(Opcodes.GETFIELD, cn, bg, "Z"));
         mn.instructions.insertBefore(ain, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
-            "com/yogpc/mi/GTFHandler", "hookDraw", "(ILjava/lang/Object;IIIIZ)V", false));
+            "com/yogpc/mi/GTFHandler", "hookDraw", "(ILjava/lang/Object;IIIIZ)V"));
       }
   }
 
@@ -178,7 +178,7 @@ public class Asm implements IClassTransformer {
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
             continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V", false));
+              "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V"));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[0], "Z"));
@@ -201,7 +201,7 @@ public class Asm implements IClassTransformer {
         final InputStream is = url.openStream();
         final ZipInputStream in = new ZipInputStream(is);
         while ((ze = in.getNextEntry()) != null) {
-          if (ze.getName().startsWith("META-INF/MOJANG")) {
+          if (ze.getName().startsWith("net/minecraft/client/")) {
             isTarget = true;
             break;
           }
@@ -303,7 +303,7 @@ public class Asm implements IClassTransformer {
                   && ((MethodInsnNode) ain).desc.equals("()V")
                   && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
                 mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                    "com/yogpc/mi/TFManager", "hookDrawGui", "()V", false));
+                    "com/yogpc/mi/TFManager", "hookDrawGui", "()V"));
                 break;
               }
             }
@@ -313,7 +313,7 @@ public class Asm implements IClassTransformer {
         final AbstractInsnNode a = mn.instructions.getFirst();
         mn.instructions.insertBefore(a, new VarInsnNode(Opcodes.ALOAD, 1));
         mn.instructions.insertBefore(a, new MethodInsnNode(Opcodes.INVOKESTATIC,
-            "com/yogpc/mi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V", false));
+            "com/yogpc/mi/TFManager", "hookShowGui", "(Ljava/lang/Object;)V"));
       }
   }
 
@@ -354,7 +354,7 @@ public class Asm implements IClassTransformer {
           if (!hwndmethods.contains(min.name + min.desc))
             continue;
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/mi/TFManager", "updateWnd", "()V", false));
+              "com/yogpc/mi/TFManager", "updateWnd", "()V"));
           modified = true;
         }
     }
