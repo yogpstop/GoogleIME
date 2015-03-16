@@ -56,7 +56,7 @@ public class Swing implements ActionListener {
         cv.setVisible(false);
         nsel = (String) cp.getSelectedItem();
       }
-      if (nsel == null || nsel.equals(last) && nv == lv)
+      if (nsel != null && nsel.equals(last) && nv == lv)
         return;
       final String v;
       if (nv)
