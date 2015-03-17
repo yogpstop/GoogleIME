@@ -43,6 +43,7 @@ public class Constants {
     try {
       sw.close();
     } catch (final IOException e) {
+      throw new RuntimeException(e);
     }
     final JPanel jp = new JPanel();
     final JTextArea jt = new JTextArea();
@@ -53,15 +54,32 @@ public class Constants {
     JOptionPane.showMessageDialog(null, jp, "Error", JOptionPane.ERROR_MESSAGE);
   }
 
+  public static File detectLauncherJar() {
+    final File f1 = new File(MINECRAFT_DIR, "launcher.jar");
+    final String s2 = System.getenv("ProgramFiles");
+    final String s3 = System.getenv("ProgramFiles(x86)");
+    final File f2 =
+        new File(s2 + File.separatorChar + "Minecraft" + File.separatorChar + "game"
+            + File.separatorChar + "launcher.jar");
+    final File f3 =
+        new File(s3 + File.separatorChar + "Minecraft" + File.separatorChar + "game"
+            + File.separatorChar + "launcher.jar");
+    if (!f1.exists() && !f2.exists() && !f3.exists())
+      throw new RuntimeException(f1.getPath() + f2.getPath() + f3.getPath());
+    return f1.exists() ? f1 : f2.exists() ? f2 : f3.exists() ? f3 : null;
+  }
+
   // Wrapper for dependencies classpath solving
   public static final void main(final String[] arg) {
     try {
       final URLClassLoader cl = (URLClassLoader) Constants.class.getClassLoader();
       final Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
       addURL.setAccessible(true);
-      addURL.invoke(cl, new File(MINECRAFT_DIR, "launcher.jar").toURI().toURL());
+      addURL.invoke(cl, detectLauncherJar().toURI().toURL());
       Swing.show();
     } catch (final Exception e) {
+      stackTraceDialog(e);
+    } catch (final Error e) {
       stackTraceDialog(e);
     }
   }

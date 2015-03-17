@@ -17,7 +17,7 @@ import javax.swing.WindowConstants;
 
 public class Swing implements ActionListener {
   private static final Swing I = new Swing();
-  private static final JFrame jf = new JFrame();
+  private static final JFrame jf = new JFrame("Minecraft IME installer");
   private static final JRadioButton gp = new JRadioButton("Profile", true);
   private static final JComboBox<String> cp = new JComboBox<String>(Main.getProfiles());
   private static final JCheckBox rew = new JCheckBox("Fix profile", true);
@@ -89,7 +89,6 @@ public class Swing implements ActionListener {
     bg.add(gp);
     bg.add(gv);
     jf.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-    jf.setTitle("Minecraft IME installer");
     final GroupLayout lo = new GroupLayout(jf.getContentPane());
     lo.setHonorsVisibility(false);
     lo.setVerticalGroup(lo

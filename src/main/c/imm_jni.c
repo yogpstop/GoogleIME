@@ -95,7 +95,7 @@ static void pushCandidate() {
 	if (size > 0 && cndl)
 	      size = ImmGetCandidateListW(hIMC, 0, cndl, size);
 	ImmReleaseContext(hWnd, hIMC);
-	if (size >= 0 && cndl) {
+	if (size > 0 && cndl) {
 		JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 		jclass sc = (*je)->FindClass(je, "java/lang/String");
 		int max = cndl->dwCount - cndl->dwPageStart;
@@ -145,7 +145,7 @@ static void killIME() {
 	DBGPRT(">>>killIME\r\n");
 }
 LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
-	DBGPRT("WndProc, 0x%8X, 0x%16I64X, 0x%16I64X\r\n",
+	DBGPRT("WndProc, 0x%08X, 0x%016I64X, 0x%016I64X\r\n",
 			msg, (unsigned long long) wp, (unsigned long long) lp);
 	switch (msg) {
 		case WM_IME_STARTCOMPOSITION:

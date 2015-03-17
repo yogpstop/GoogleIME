@@ -16,3 +16,4 @@ TODO
 * GuiScreenBook
 * GuiEditSign
 * (reading window)
+* Windows8.1withMS-IME (ImmGetCandidateListW always return 0)
