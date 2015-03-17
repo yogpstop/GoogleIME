@@ -181,7 +181,8 @@ public class Asm implements IClassTransformer {
             continue;
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
             continue;
-          LogWrapper.info("[MCIME] TFManager.hookFocuse call on %s.%s%s", cn.name, mn.name, mn.desc);
+          LogWrapper
+              .info("[MCIME] TFManager.hookFocuse call on %s.%s%s", cn.name, mn.name, mn.desc);
           mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
               "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V"));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
@@ -230,19 +231,24 @@ public class Asm implements IClassTransformer {
       if ("(C)I".equals(mn.desc)) {
         boolean isTarget = false;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain.getOpcode() == Opcodes.ICONST_M1) {
+          if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+              && ((String) ((LdcInsnNode) ain).cst).equals("0123456789abcdef")) {
             isTarget = true;
             break;
           }
         if (isTarget)
           for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-            if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
+            if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7) {
+              LogWrapper.info("[MCIME] 7=>15 on %s.%s%s", cn.name, mn.name, mn.desc);
               ((IntInsnNode) ain).operand = 15;
+            }
         // Optifine
       } else if ("(C)F".equals(mn.desc))
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-          if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7)
+          if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7) {
+            LogWrapper.info("[MCIME] 7=>15 on %s.%s%s", cn.name, mn.name, mn.desc);
             ((IntInsnNode) ain).operand = 15;
+          }
   }
 
   private static final ClassNode gtfm(final ClassNode cn) {
@@ -311,7 +317,8 @@ public class Asm implements IClassTransformer {
             if (phase == 0 && ain.getOpcode() == Opcodes.INVOKEVIRTUAL
                 && ((MethodInsnNode) ain).desc.equals("()V")
                 && ((MethodInsnNode) ain).owner.equals(nd.get(s))) {
-              LogWrapper.info("[MCIME] TFManager.hookDrawGui call on %s.%s%s", cn.name, mn.name, mn.desc);
+              LogWrapper.info("[MCIME] TFManager.hookDrawGui call on %s.%s%s", cn.name, mn.name,
+                  mn.desc);
               mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
                   "com/yogpc/mi/TFManager", "hookDrawGui", "()V"));
             }
@@ -373,18 +380,19 @@ public class Asm implements IClassTransformer {
       cn = gtfm(cn);
       modified = true;
     }
-    if (cn.name.indexOf('/') < 0)// TODO Obfuscated detection
-      for (final MethodNode mn : cn.methods)
-        if ("(IIZ)I".equals(mn.desc)) {
-          gtf(cn);
-          modified = true;
-        } else if (isMinecraft(mn)) {
-          mc(cn);
-          modified = true;
-        } else if ("(ICZ)F".equals(mn.desc)) {
-          fr(cn);
-          modified = true;
-        }
+    for (final MethodNode mn : cn.methods)
+      // TODO Obfuscated detection
+      if ("(IIZ)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
+        gtf(cn);
+        modified = true;
+        // TODO Obfuscated detection
+      } else if ("(C)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
+        fr(cn);
+        modified = true;
+      } else if (isMinecraft(mn)) {
+        mc(cn);
+        modified = true;
+      }
     if (!modified)
       return ba;
     final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);

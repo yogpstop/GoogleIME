@@ -8,8 +8,15 @@ static jobject gCLS = NULL;
 #define JMID_COMP 2
 #define JMID_KILL 3
 #define JMID_STAT 4
+#if MCIME_DEBUG
+	static FILE *fd = NULL;
+	#define DBGPRT(...); if(fd){fprintf(fd, __VA_ARGS__);fflush(fd);}
+#else
+	#define DBGPRT(...);
+#endif
 static jmethodID jms[5];
 static void sendNullKeydown() {
+	DBGPRT("<<<sendNullKeydown\r\n");
 	if (pWndProc == NULL || hWnd != GetForegroundWindow())
 		return;
 	INPUT in;
@@ -20,8 +27,10 @@ static void sendNullKeydown() {
 	in.ki.time = 0;
 	in.ki.dwExtraInfo = 0;// FIXME GetMessageExtraInfo()
 	SendInput(1, &in, sizeof(INPUT));
+	DBGPRT(">>>sendNullKeydown\r\n");
 }
 static JNIEnv *getJE(JavaVM **sr) {
+	DBGPRT("<<<getJE\r\n");
 	JavaVM *jv = NULL;
 	jsize vms = 0;
 	JNI_GetCreatedJavaVMs(&jv, 1, &vms);
@@ -30,9 +39,11 @@ static JNIEnv *getJE(JavaVM **sr) {
 	if (ret == JNI_OK) return je;
 	(*jv)->AttachCurrentThread(jv, (void **) &je, NULL);
 	*sr = jv;
+	DBGPRT(">>>getJE\r\n");
 	return je;
 }
 static void pushResult() {
+	DBGPRT("<<<pushResult\r\n");
 	HIMC  hIMC = ImmGetContext(hWnd);
 	LONG  ssiz = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR , NULL, 0);
 	jchar *str = malloc(ssiz > 0 ? ssiz : 0);
@@ -47,8 +58,10 @@ static void pushResult() {
 	}
 	free(str);
 	sendNullKeydown();// FIXME
+	DBGPRT(">>>pushResult\r\n");
 }
 static void pushComposition() {
+	DBGPRT("<<<pushComposition\r\n");
 	HIMC  hIMC = ImmGetContext(hWnd);
 	LONG  size = ImmGetCompositionStringW(hIMC, GCS_COMPATTR, NULL, 0);
 	jbyte *ret = malloc(size > 0 ? size : 0);
@@ -71,8 +84,10 @@ static void pushComposition() {
 	}
 	free(str);
 	free(ret);
+	DBGPRT(">>>pushComposition\r\n");
 }
 static void pushCandidate() {
+	DBGPRT("<<<pushCandidate\r\n");
 	// FIXME ImmGetCandidateListCount
 	HIMC  hIMC = ImmGetContext(hWnd);
 	DWORD size = ImmGetCandidateListW(hIMC, 0, NULL, 0);
@@ -96,24 +111,30 @@ static void pushCandidate() {
 		if (sr) (*sr)->DetachCurrentThread(sr);
 	}
 	free(cndl);
+	DBGPRT(">>>pushCandidate\r\n");
 }
 static void pushClear(jmethodID jm, int c) {
+	DBGPRT("<<<pushClear\r\n");
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jvalue *joa = malloc(c * sizeof(jvalue));
 	memset(joa, 0, c * sizeof(jvalue));
 	(*je)->CallStaticVoidMethodA(je, gCLS, jm, joa);
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	free(joa);
+	DBGPRT(">>>pushClear\r\n");
 }
 static void pushStatus() {
+	DBGPRT("<<<pushStatus\r\n");
 	HIMC hIMC = ImmGetContext(hWnd);
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	(*je)->CallStaticVoidMethod(je, gCLS, jms[JMID_STAT],
 			ImmGetOpenStatus(hIMC));
 	if (sr) (*sr)->DetachCurrentThread(sr);
 	ImmReleaseContext(hWnd, hIMC);
+	DBGPRT(">>>pushStatus\r\n");
 }
 static void killIME() {
+	DBGPRT("<<<killIME\r\n");
 	JavaVM *sr = NULL; JNIEnv *je = getJE(&sr);
 	jboolean jb = (*je)->CallStaticBooleanMethod(je, gCLS, jms[JMID_KILL]);
 	if (sr) (*sr)->DetachCurrentThread(sr);
@@ -121,8 +142,11 @@ static void killIME() {
 	HIMC hIMC = ImmGetContext(hWnd);
 	ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
 	ImmReleaseContext(hWnd, hIMC);
+	DBGPRT(">>>killIME\r\n");
 }
 LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
+	DBGPRT("WndProc, 0x%8X, 0x%16I64X, 0x%16I64X\r\n",
+			msg, (unsigned long long) wp, (unsigned long long) lp);
 	switch (msg) {
 		case WM_IME_STARTCOMPOSITION:
 			killIME();
@@ -161,6 +185,7 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	return CallWindowProc(pWndProc, phWnd, msg, wp, lp);
 }
 static void initGlobal(JNIEnv *je, jclass jc) {
+	DBGPRT("<<<initGlobal\r\n");
 	gCLS = (*je)->NewGlobalRef(je, jc);
 	jms[JMID_RES ] = (*je)->GetStaticMethodID(je, gCLS,
 			"cbResult", "(Ljava/lang/String;)V");
@@ -172,9 +197,21 @@ static void initGlobal(JNIEnv *je, jclass jc) {
 			"shouldKill", "()Z");
 	jms[JMID_STAT] = (*je)->GetStaticMethodID(je, gCLS,
 			"cbStatus", "(Z)V");
+	DBGPRT(">>>initGlobal\r\n");
 }
 JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_setHWnd
 		(JNIEnv * je, jclass jc, jlong ptr) {
+#if MCIME_DEBUG
+	if (!fd) {
+		char *e = getenv("APPDATA");
+		char *b = malloc(strlen(e) + 32);
+		strcpy(b, e);
+		strcat(b, "\\.minecraft\\MCIME.txt");
+		fd = fopen(b, "wb");
+		free(b);
+	}
+#endif
+	DBGPRT("<<<setHWnd\r\n");
 	if (!gCLS) initGlobal(je, jc);
 	if (!ptr) return;
 	hWnd = (HWND)(LONG_PTR) ptr;
@@ -183,20 +220,25 @@ JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_setHWnd
 	SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR) WndProc);
 	SetActiveWindow(hWnd);
 	sendNullKeydown();// FIXME
+	DBGPRT(">>>setHWnd\r\n");
 }
 static HIMC lastHIMC = NULL;
 JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_linkIME
 		(JNIEnv *je, jclass jc) {
+	DBGPRT("<<<linkIME\r\n");
 	if (!hWnd) return;
 	if (lastHIMC) {
 		ImmAssociateContext(hWnd, lastHIMC);
 		lastHIMC = NULL;
 	}
 	pushStatus();
+	DBGPRT(">>>linkIME\r\n");
 }
 JNIEXPORT void JNICALL Java_com_yogpc_mi_w32_JNIHandler_unlinkIME
 		(JNIEnv *je, jclass jc) {
+	DBGPRT("<<<unlinkIME\r\n");
 	if (!hWnd) return;
 	HIMC hIMC = ImmAssociateContext(hWnd, 0);
 	if (hIMC) lastHIMC = hIMC;
+	DBGPRT(">>>unlinkIME\r\n");
 }

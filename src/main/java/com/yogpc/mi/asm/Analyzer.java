@@ -203,13 +203,15 @@ public class Analyzer {
       if ("(IIZ)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
         gtf = true;
         Mapping.addC("GuiTextField", cn.name);
-      } else if ("(C)I".equals(mn.desc)) {
+        // TODO Obfuscated detection
+      } else if ("(C)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
         fr = true;
         Mapping.addC("FontRenderer", cn.name);
       } else if (Asm.isMinecraft(mn)) {
         mc = true;
         Mapping.addC("Minecraft", cn.name);
-      } else if (isKeyHook(mn))
+        // TODO Obfuscated detection
+      } else if (isKeyHook(mn) && cn.name.indexOf('/') < 0)
         gs = true;
     if (gtf)
       guiTextField(cn);

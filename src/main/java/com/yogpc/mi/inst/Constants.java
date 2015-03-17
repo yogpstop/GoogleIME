@@ -1,13 +1,20 @@
 package com.yogpc.mi.inst;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-public class Constants {
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
-  private static final String osn = System.getProperty("os.name").toLowerCase();
+public class Constants {
+  private static final String osn = System.getProperty("os.name", "").toLowerCase();
 
   private static final File getDirectory(final String name) {
     final String home = System.getProperty("user.home", ".");
@@ -28,19 +35,34 @@ public class Constants {
   public static final File MINECRAFT_LIBRARIES = new File(MINECRAFT_DIR, "libraries");
   public static final File MINECRAFT_VERSIONS = new File(MINECRAFT_DIR, "versions");
 
-  static {
+  public static void stackTraceDialog(final Throwable t) {
+    final StringWriter sw = new StringWriter();
+    final PrintWriter pw = new PrintWriter(sw);
+    t.printStackTrace(pw);
+    pw.close();
+    try {
+      sw.close();
+    } catch (final IOException e) {
+    }
+    final JPanel jp = new JPanel();
+    final JTextArea jt = new JTextArea();
+    jt.setText(sw.toString());
+    jt.setEditable(false);
+    final JScrollPane js = new JScrollPane(jt);
+    jp.add(js);
+    JOptionPane.showMessageDialog(null, jp, "Error", JOptionPane.ERROR_MESSAGE);
+  }
+
+  // Wrapper for dependencies classpath solving
+  public static final void main(final String[] arg) {
     try {
       final URLClassLoader cl = (URLClassLoader) Constants.class.getClassLoader();
       final Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
       addURL.setAccessible(true);
       addURL.invoke(cl, new File(MINECRAFT_DIR, "launcher.jar").toURI().toURL());
+      Swing.show();
     } catch (final Exception e) {
-      e.printStackTrace();
+      stackTraceDialog(e);
     }
-  }
-
-  // Wrapper for dependencies classpath solving
-  public static final void main(final String[] arg) {
-    Swing.show();
   }
 }

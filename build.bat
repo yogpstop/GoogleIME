@@ -3,7 +3,7 @@ set JPRE32=C:\Program Files (x86)\Java\jdk1.8.0_40\
 set JPRE64=C:\Program Files\Java\jdk1.8.0_40\
 set GPRE32=C:\msys64\mingw32\bin\i686-w64-mingw32-
 set GPRE64=C:\msys64\mingw64\bin\x86_64-w64-mingw32-
-set GOPT1=-Wall -Werror -O3 -s -flto -pipe -shared -Wl,--kill-at -I.
+set GOPT1=-Wall -Werror -O3 -s -flto -pipe -shared -Wl,--kill-at -I. -DMCIME_DEBUG=1
 set G32OPT=-I"%JPRE32%\include" -I"%JPRE32%\include\win32" -L"%JPRE32%\lib"
 set G64OPT=-I"%JPRE64%\include" -I"%JPRE64%\include\win32" -L"%JPRE64%\lib"
 set GOPT2=-ljvm -limm32
