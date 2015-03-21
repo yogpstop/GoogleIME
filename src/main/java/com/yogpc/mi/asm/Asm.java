@@ -229,14 +229,14 @@ public class Asm implements IClassTransformer {
     AbstractInsnNode ain;
     for (final MethodNode mn : cn.methods)
       if ("(C)I".equals(mn.desc)) {
-        boolean isTarget = false;
+        boolean found = false;
         for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
           if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
               && ((String) ((LdcInsnNode) ain).cst).equals("0123456789abcdef")) {
-            isTarget = true;
+            found = true;
             break;
           }
-        if (isTarget)
+        if (!found)
           for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
             if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 7) {
               LogWrapper.info("[MCIME] 7=>15 on %s.%s%s", cn.name, mn.name, mn.desc);

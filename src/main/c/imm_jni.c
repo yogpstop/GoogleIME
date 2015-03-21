@@ -173,14 +173,15 @@ LRESULT CALLBACK WndProc(HWND phWnd, UINT msg, WPARAM wp, LPARAM lp) {
 					return S_OK;
 				case IMN_SETOPENSTATUS:
 					pushStatus();
-					return S_OK;
+					break;
 			}
 			break;
 		case WM_INPUTLANGCHANGE:
 			pushStatus();
-			return S_OK;
+			break;
 		case WM_IME_SETCONTEXT:
-			return DefWindowProc(phWnd, msg, wp, 0);
+			lp = 0;
+			break;
 	}
 	return CallWindowProc(pWndProc, phWnd, msg, wp, lp);
 }

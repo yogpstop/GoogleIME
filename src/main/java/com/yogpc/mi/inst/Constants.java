@@ -1,12 +1,15 @@
 package com.yogpc.mi.inst;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -54,28 +57,30 @@ public class Constants {
     JOptionPane.showMessageDialog(null, jp, "Error", JOptionPane.ERROR_MESSAGE);
   }
 
-  public static File detectLauncherJar() {
-    final File f1 = new File(MINECRAFT_DIR, "launcher.jar");
-    final String s2 = System.getenv("ProgramFiles");
-    final String s3 = System.getenv("ProgramFiles(x86)");
-    final File f2 =
-        new File(s2 + File.separatorChar + "Minecraft" + File.separatorChar + "game"
-            + File.separatorChar + "launcher.jar");
-    final File f3 =
-        new File(s3 + File.separatorChar + "Minecraft" + File.separatorChar + "game"
-            + File.separatorChar + "launcher.jar");
-    if (!f1.exists() && !f2.exists() && !f3.exists())
-      throw new RuntimeException(f1.getPath() + f2.getPath() + f3.getPath());
-    return f1.exists() ? f1 : f2.exists() ? f2 : f3.exists() ? f3 : null;
-  }
+  private static final String gson_on =
+      "http://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.2.4/gson-2.2.4.jar";
+  private static final File gson_off = new File(MINECRAFT_LIBRARIES, new StringBuilder()
+      .append("com").append(File.separatorChar).append("google").append(File.separatorChar)
+      .append("code").append(File.separatorChar).append("gson").append(File.separatorChar)
+      .append("gson").append(File.separatorChar).append("2.2.4").append(File.separatorChar)
+      .append("gson-2.2.4.jar").toString());
 
   // Wrapper for dependencies classpath solving
   public static final void main(final String[] arg) {
     try {
+      if (!gson_off.exists()) {
+        gson_off.getParentFile().mkdirs();
+        final URL website = new URL(gson_on);
+        final ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+        final FileOutputStream fos = new FileOutputStream(gson_off);
+        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        fos.close();
+        rbc.close();
+      }
       final URLClassLoader cl = (URLClassLoader) Constants.class.getClassLoader();
       final Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
       addURL.setAccessible(true);
-      addURL.invoke(cl, detectLauncherJar().toURI().toURL());
+      addURL.invoke(cl, gson_off.toURI().toURL());
       Swing.show();
     } catch (final Exception e) {
       stackTraceDialog(e);
