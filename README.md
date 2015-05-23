@@ -14,6 +14,5 @@ In most case, this require launchwrapper version 1.7 and over (multiple tweak cl
 TODO
 ----
 * GuiScreenBook
-* GuiEditSign
 * (reading window)
 * Windows8.1withMS-IME (ImmGetCandidateListW always return 0)

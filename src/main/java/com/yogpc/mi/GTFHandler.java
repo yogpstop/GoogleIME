@@ -1,9 +1,13 @@
 package com.yogpc.mi;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import com.yogpc.mi.dummy.FontRenderer;
 import com.yogpc.mi.dummy.GuiTextField;
 
 public class GTFHandler extends Handler {
+  private static Map<GTFHandler, Long> map = new WeakHashMap<GTFHandler, Long>();
   private final GuiTextField gtf;
 
   public GTFHandler(final GuiTextField gtf) {
@@ -52,6 +56,22 @@ public class GTFHandler extends Handler {
     }
     renderCandidate(fr, xposc, aypos, aypos + 9/* FontRenderer.FONT_HEIGHT */);
     return;
+  }
+
+  public final void hookFocuse(final boolean fc, final boolean en) {
+    map.put(this, Long.valueOf(fc && en ? System.nanoTime() : -1));
+    GTFHandler r = null;
+    long l = -1;
+    for (final Map.Entry<GTFHandler, Long> e : map.entrySet())
+      if (l < e.getValue().longValue()) {
+        r = e.getKey();
+        l = e.getValue().longValue();
+      }
+    TFManager.set(r);
+  }
+
+  static final void clean() {
+    map.clear();
   }
 
   @Override

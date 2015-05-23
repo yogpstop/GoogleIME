@@ -16,6 +16,8 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -193,11 +195,66 @@ public class Analyzer {
     return false;
   }
 
+  private static void guiScreenBook(final ClassNode cn) {
+    for (final MethodNode mn : cn.methods)
+      if ("(Ljava/lang/String;)V".equals(mn.desc)) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 118)
+            Mapping.addM("GuiScreenBook", "pageInsertIntoCurrent", mn.name);
+      }
+    for (final FieldNode fn : cn.fields)
+      if ("Ljava/lang/String;".equals(fn.desc))
+        Mapping.addM("GuiScreenBook", "bookTitle", fn.name);
+  }
+
+  private static void guiEditSign(final ClassNode cn) {
+    AbstractInsnNode ain;
+    for (final MethodNode mn : cn.methods)
+      if ("<init>".equals(mn.name)) {
+        int phase = 0;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (phase == 0 && ain.getOpcode() == Opcodes.ALOAD)
+            phase = 1;
+          else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD) {
+            Mapping.addM("GuiEditSign", "tile", ((FieldInsnNode) ain).name);
+            break;
+          }
+      } else if ("(CI)V".equals(mn.desc))
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.PUTFIELD && ((FieldInsnNode) ain).owner.equals(cn.name)
+              && ((FieldInsnNode) ain).desc.equals("I")) {
+            Mapping.addM("GuiEditSign", "line", ((FieldInsnNode) ain).name);
+            break;
+          }
+  }
+
+  private static void tileEntitySign(final ClassNode cn) {
+    for (final FieldNode fn : cn.fields)
+      if (fn.desc.startsWith("[")) {
+        Mapping.addM("TileEntitySign", "signText", fn.name);
+        break;
+      }
+  }
+
+  private static void chatComponentStyle(final ClassNode cn) {
+    int i = Integer.MAX_VALUE;
+    String n = null;
+    for (final MethodNode mn : cn.methods)
+      if ("()Ljava/lang/String;".equals(mn.desc) && mn.instructions.size() < i
+          && !"toString".equals(mn.name)) {
+        i = mn.instructions.size();
+        n = mn.name;
+      }
+    Mapping.addM("IChatComponent", "getUnformattedText", n);
+  }
+
   private static void analyze(final byte[] ba) {
     final ClassNode cn = new ClassNode();
     final ClassReader cr = new ClassReader(ba);
     cr.accept(cn, ClassReader.EXPAND_FRAMES);
-    boolean fr = false, gtf = false, mc = false, gs = false;
+    boolean fr = false, gtf = false, mc = false, gs = false, gsb = false, ges = false, tes = false, ccs =
+        false;
     for (final MethodNode mn : cn.methods)
       // TODO Obfuscated detection
       if ("(IIZ)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
@@ -207,18 +264,41 @@ public class Analyzer {
       } else if ("(C)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
         fr = true;
         Mapping.addC("FontRenderer", cn.name);
-      } else if (Asm.isMinecraft(mn)) {
+      } else if (Asm.findLDC(mn, "########## GL ERROR ##########")) {
         mc = true;
         Mapping.addC("Minecraft", cn.name);
         // TODO Obfuscated detection
-      } else if (isKeyHook(mn) && cn.name.indexOf('/') < 0)
+      } else if ("<init>".equals(mn.name) && Asm.findLDC(mn, "pages") && cn.name.indexOf('/') < 0) {
+        gsb = true;
+        Mapping.addC("GuiScreenBook", cn.name);
+      } else if (Asm.findLDC(mn, "sign.edit") || Asm.findLDC(mn, "Edit sign message:")) {
+        ges = true;
+        Mapping.addC("GuiEditSign", cn.name);
+      } else if (Asm.findLDC(mn, "Text")) {
+        tes = true;
+        Mapping.addC("TileEntitySign", cn.name);
+      } else if (Asm.startLDC(mn, "BaseComponent")) {
+        ccs = true;
+        Mapping.addC("IChatComponent", cn.interfaces.get(0));
+      } else if (Asm.startLDC(mn, "TextComponent"))
+        Mapping.addC("ChatComponentText", cn.name);
+      // TODO Obfuscated detection
+      else if (isKeyHook(mn) && cn.name.indexOf('/') < 0)
         gs = true;
     if (gtf)
       guiTextField(cn);
+    else if (gsb)
+      guiScreenBook(cn);
     else if (fr)
       fontRenderer(cn);
     else if (mc)
       minecraft(cn);
+    else if (ges)
+      guiEditSign(cn);
+    else if (tes)
+      tileEntitySign(cn);
+    else if (ccs)
+      chatComponentStyle(cn);
     else if (gs) {// always NOT mc
       Mapping.addC("GuiScreen", cn.name);
       guiScreen(cn);

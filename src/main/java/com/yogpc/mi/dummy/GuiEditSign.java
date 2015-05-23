@@ -1,5 +1,6 @@
 package com.yogpc.mi.dummy;
 
 public class GuiEditSign {
-  // TODO analyze
+  public TileEntitySign tile;
+  public int line;
 }

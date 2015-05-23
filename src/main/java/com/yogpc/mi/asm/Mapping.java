@@ -13,6 +13,10 @@ public class Mapping extends Remapper {
   private static final Map<String, Map<String, String>> mtd =
       new HashMap<String, Map<String, String>>();
 
+  static {
+    addC("IChatComponent", "java/lang/String");
+  }
+
   static void addC(final String c_raw, final String c_obf) {
     LogWrapper.info("[MCIME] %s=%s", c_raw, c_obf);
     cls.put(c_raw, c_obf);

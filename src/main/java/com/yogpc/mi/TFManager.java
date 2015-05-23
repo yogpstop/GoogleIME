@@ -1,8 +1,8 @@
 package com.yogpc.mi;
 
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 import org.lwjgl.opengl.GL11;
 
@@ -14,20 +14,17 @@ import com.yogpc.mi.dummy.Minecraft;
 import com.yogpc.mi.w32.JNIHandler;
 
 public class TFManager {
-  private static WeakReference<Handler> cur = new WeakReference<Handler>(null);
-  private static Map<GTFHandler, Long> map = new WeakHashMap<GTFHandler, Long>();
+  private static Reference<Handler> cur = new WeakReference<Handler>(null);
   private static boolean enabled = false;
 
   public static final void hookShowGui(final Object o) {
-    map.clear();
-    if (o instanceof GuiEditSign || o instanceof GuiScreenBook) {
-      // TODO Handler for GuiEditSign and GuiScreenBook
-      cur = new WeakReference<Handler>(null);
-      JNIHandler.linkIME();
-    } else {
-      cur = new WeakReference<Handler>(null);
-      JNIHandler.unlinkIME();
-    }
+    GTFHandler.clean();
+    if (o instanceof GuiEditSign)
+      set(new SignHandler((GuiEditSign) o));
+    else if (o instanceof GuiScreenBook)
+      set(new BookHandler());
+    else
+      set(null);
   }
 
   public static final void hookDrawGui() {
@@ -76,17 +73,12 @@ public class TFManager {
     h.a = null;
   }
 
-  public static final void hookFocuse(final GTFHandler o, final boolean fc, final boolean en) {
-    map.put(o, Long.valueOf(fc && en ? System.nanoTime() : -1));
-    GTFHandler r = null;
-    long l = -1;
-    for (final Map.Entry<GTFHandler, Long> e : map.entrySet())
-      if (l < e.getValue().longValue()) {
-        r = e.getKey();
-        l = e.getValue().longValue();
-      }
-    if (r != null) {
-      cur = new WeakReference<Handler>(r);
+  static final void set(final Handler h) {
+    if (h != null) {
+      if (h instanceof GTFHandler)
+        cur = new WeakReference<Handler>(h);
+      else
+        cur = new SoftReference<Handler>(h);
       JNIHandler.linkIME();
     } else {
       cur = new WeakReference<Handler>(null);

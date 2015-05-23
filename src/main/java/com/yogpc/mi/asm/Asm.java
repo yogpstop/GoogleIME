@@ -4,8 +4,10 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -48,10 +50,9 @@ public class Asm implements IClassTransformer {
   }
 
   private static final void init(final MethodNode mn, final String cn) {
-    AbstractInsnNode p = mn.instructions.getLast();
-    while (p.getOpcode() != Opcodes.RETURN)
-      p = p.getPrevious();
-    p = p.getPrevious();
+    AbstractInsnNode p = mn.instructions.getFirst();
+    while (p.getOpcode() != Opcodes.INVOKESPECIAL)
+      p = p.getNext();
     LogWrapper.info("[MCIME] GTFHandler.<init> call on %s.%s%s", cn, mn.name, mn.desc);
     mn.instructions.insert(p, new FieldInsnNode(Opcodes.PUTFIELD, cn, "manager",
         "Lcom/yogpc/mi/GTFHandler;"));
@@ -181,10 +182,10 @@ public class Asm implements IClassTransformer {
             continue;
           if (!min.name.equals(focuse[0]) && !min.name.equals(focuse[1]))
             continue;
-          LogWrapper
-              .info("[MCIME] TFManager.hookFocuse call on %s.%s%s", cn.name, mn.name, mn.desc);
-          mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKESTATIC,
-              "com/yogpc/mi/TFManager", "hookFocuse", "(Lcom/yogpc/mi/GTFHandler;ZZ)V"));
+          LogWrapper.info("[MCIME] GTFHandler.hookFocuse call on %s.%s%s", cn.name, mn.name,
+              mn.desc);
+          mn.instructions.insert(ain, new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
+              "com/yogpc/mi/GTFHandler", "hookFocuse", "(ZZ)V"));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[1], "Z"));
           mn.instructions.insert(ain, new VarInsnNode(Opcodes.ALOAD, 0));
           mn.instructions.insert(ain, new FieldInsnNode(Opcodes.GETFIELD, cn.name, focuse[0], "Z"));
@@ -197,11 +198,14 @@ public class Asm implements IClassTransformer {
   }
 
   private static boolean done = false;
+  private static final Set<URL> analyzed = new HashSet<URL>();
 
   private static final void init() {
     try {
       final URL[] urls = Launch.classLoader.getURLs();
       for (final URL url : urls) {
+        if (!analyzed.add(url))
+          continue;
         boolean isTarget = false;
         ZipEntry ze;
         final InputStream is = url.openStream();
@@ -333,13 +337,66 @@ public class Asm implements IClassTransformer {
       }
   }
 
-  static boolean isMinecraft(final MethodNode mn) {
+  static boolean findLDC(final MethodNode mn, final String s) {
     AbstractInsnNode ain;
     for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
-      if (ain instanceof LdcInsnNode
-          && "########## GL ERROR ##########".equals(((LdcInsnNode) ain).cst))
+      if (ain instanceof LdcInsnNode && s.equals(((LdcInsnNode) ain).cst))
         return true;
     return false;
+  }
+
+  static boolean startLDC(final MethodNode mn, final String s) {
+    AbstractInsnNode ain;
+    for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+      if (ain instanceof LdcInsnNode && ((LdcInsnNode) ain).cst instanceof String
+          && ((String) ((LdcInsnNode) ain).cst).startsWith(s))
+        return true;
+    return false;
+  }
+
+  private static void gsb(final ClassNode cn) {
+    for (final MethodNode mn : cn.methods)
+      if ("(Ljava/lang/String;)V".equals(mn.desc)) {
+        AbstractInsnNode ain;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.BIPUSH && ((IntInsnNode) ain).operand == 118)
+            mn.access =
+                mn.access & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PUBLIC;
+      }
+    for (final FieldNode fn : cn.fields)
+      if ("Ljava/lang/String;".equals(fn.desc))
+        fn.access = fn.access & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PUBLIC;
+  }
+
+  private static void ges(final ClassNode cn) {
+    AbstractInsnNode ain;
+    for (final MethodNode mn : cn.methods)
+      if ("<init>".equals(mn.name)) {
+        int phase = 0;
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (phase == 0 && ain.getOpcode() == Opcodes.ALOAD)
+            phase = 1;
+          else if (phase == 1 && ain.getOpcode() == Opcodes.PUTFIELD) {
+            for (final FieldNode fn : cn.fields)
+              if (fn.name.equals(((FieldInsnNode) ain).name)) {
+                fn.access =
+                    fn.access & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PUBLIC;
+                break;
+              }
+            break;
+          }
+      } else if ("(CI)V".equals(mn.desc))
+        for (ain = mn.instructions.getFirst(); ain != null; ain = ain.getNext())
+          if (ain.getOpcode() == Opcodes.PUTFIELD && ((FieldInsnNode) ain).owner.equals(cn.name)
+              && ((FieldInsnNode) ain).desc.equals("I")) {
+            for (final FieldNode fn : cn.fields)
+              if (fn.name.equals(((FieldInsnNode) ain).name)) {
+                fn.access =
+                    fn.access & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PUBLIC;
+                break;
+              }
+            break;
+          }
   }
 
   private static final List<String> hwndmethods = new ArrayList<String>();
@@ -389,8 +446,15 @@ public class Asm implements IClassTransformer {
       } else if ("(C)I".equals(mn.desc) && cn.name.indexOf('/') < 0) {
         fr(cn);
         modified = true;
-      } else if (isMinecraft(mn)) {
+      } else if (findLDC(mn, "########## GL ERROR ##########")) {
         mc(cn);
+        modified = true;
+        // TODO Obfuscated detection
+      } else if ("<init>".equals(mn.name) && findLDC(mn, "pages") && cn.name.indexOf('/') < 0) {
+        gsb(cn);
+        modified = true;
+      } else if (Asm.findLDC(mn, "sign.edit") || Asm.findLDC(mn, "Edit sign message:")) {
+        ges(cn);
         modified = true;
       }
     if (!modified)
