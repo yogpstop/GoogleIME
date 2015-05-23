@@ -233,6 +233,7 @@ public class Analyzer {
     for (final FieldNode fn : cn.fields)
       if (fn.desc.startsWith("[")) {
         Mapping.addM("TileEntitySign", "signText", fn.name);
+        Mapping.addC("IChatComponent", fn.desc.substring(2, fn.desc.length() - 1));
         break;
       }
   }
@@ -277,10 +278,9 @@ public class Analyzer {
       } else if (Asm.findLDC(mn, "Text")) {
         tes = true;
         Mapping.addC("TileEntitySign", cn.name);
-      } else if (Asm.startLDC(mn, "BaseComponent")) {
+      } else if (Asm.startLDC(mn, "BaseComponent"))
         ccs = true;
-        Mapping.addC("IChatComponent", cn.interfaces.get(0));
-      } else if (Asm.startLDC(mn, "TextComponent"))
+      else if (Asm.startLDC(mn, "TextComponent"))
         Mapping.addC("ChatComponentText", cn.name);
       // TODO Obfuscated detection
       else if (isKeyHook(mn) && cn.name.indexOf('/') < 0)
